@@ -49,6 +49,7 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   <button class="tile" onclick="openRadio()"><b>Radio internetowe</b><span>Wyszukiwarka stacji, ulubione, gra w tle</span></button>
   <div class="np"></div>
   <a class="tile" href="https://service.iglutech.eu" target="_blank" rel="noopener"><b>Iglutech Service</b><span>Otwiera service.iglutech.eu w przeglądarce (logowanie z Authenticatorem)</span></a>
+    <button class="tile" onclick="openShortcuts()"><b>Skróty</b><span>Szybki dostęp do ulubionych aplikacji</span></button>
   <button class="tile" onclick="openInfo()"><b>Info</b><span>Wersja aplikacji i informacje</span></button>
 </div>
 <div id="app"><div id="bar"><button onclick="closeTool()">← Menu</button><span id="ttl"></span></div><iframe id="fr"></iframe></div>
@@ -72,6 +73,20 @@ iframe{flex:1;width:100%;border:0;background:#fff}
     <p><b>Wersja:</b> <span id="info-version">…</span></p>
     <p><b>Opis:</b> Generator schematów, protokół uruchomienia pompy ciepła, radio internetowe i skrót do Iglutech.</p>
     <p style="color:var(--sub);font-size:.85rem;margin-top:20px">© MD-INSTAL</p>
+  </div>
+</div>
+<div id="skroty" style="display:none">
+  <div class="rbar">
+    <button onclick="closeShortcuts()">← Menu</button>
+    <span>Skróty</span>
+  </div>
+  <div class="rbody">
+    <h2>Moje skróty</h2>
+    <div id="shortcuts-list"></div>
+    <button class="tile" onclick="addShortcut()" style="border-left-color:#16a34a;margin-top:20px">
+      <b>+ Dodaj skrót</b>
+      <span>Wybierz aplikację z listy</span>
+    </button>
   </div>
 </div>
 <audio id="au" preload="none"></audio>
@@ -113,6 +128,71 @@ function closeInfo(){
   $('info').style.display='none';
   $('home').style.display='block';
 }
+function getShortcuts(){
+  try{return JSON.parse(localStorage.getItem('shortcuts')||'[]')}catch(e){return[]}
+}
+function saveShortcuts(a){
+  try{localStorage.setItem('shortcuts',JSON.stringify(a))}catch(e){}
+}
+function openShortcuts(){
+  $('home').style.display='none';
+  $('skroty').style.display='block';
+  renderShortcuts();
+}
+function closeShortcuts(){
+  $('skroty').style.display='none';
+  $('home').style.display='block';
+}
+function renderShortcuts(){
+  const el=$('shortcuts-list');
+  el.textContent='';
+  const a=getShortcuts();
+  if(!a.length){
+    const e=document.createElement('div');
+    e.className='empty';
+    e.textContent='Brak skrótów. Kliknij „Dodaj skrót", żeby dodać pierwszą aplikację.';
+    el.append(e);
+    return;
+  }
+  a.forEach(function(s,i){
+    const d=document.createElement('div');
+    d.className='st';
+    const n=document.createElement('span');
+    n.className='n';
+    n.textContent=s.label;
+    const run=document.createElement('button');
+    run.textContent='▶';
+    run.onclick=function(){ if(window.Android&&Android.launchApp) Android.launchApp(s.pkg); };
+    const del=document.createElement('button');
+    del.textContent='✕';
+    del.onclick=function(){
+      if(!confirm('Usunąć skrót „'+s.label+'"?'))return;
+      const arr=getShortcuts();
+      arr.splice(i,1);
+      saveShortcuts(arr);
+      renderShortcuts();
+    };
+    d.append(n,run,del);
+    el.append(d);
+  });
+}
+function addShortcut(){
+  if(window.Android&&Android.pickApp){
+    Android.pickApp();
+  } else {
+    alert('Dodawanie skrótów działa tylko w aplikacji Android.');
+  }
+}
+window.onAppPicked=function(pkg,label){
+  const arr=getShortcuts();
+  if(arr.some(function(s){return s.pkg===pkg})){
+    alert('Ta aplikacja jest już dodana.');
+    return;
+  }
+  arr.push({pkg:pkg,label:label});
+  saveShortcuts(arr);
+  renderShortcuts();
+};
 function play(name,url){
   cur={name:name,url:url};au.src=url;au.play().catch(()=>{});
   if('mediaSession' in navigator){
@@ -205,6 +285,7 @@ window.appBack=function(){
   if(document.getElementById('app').style.display==='flex'){closeTool();return true}
   if(document.getElementById('radio').style.display==='block'){closeRadio();return true}
   if(document.getElementById('info').style.display==='block'){closeInfo();return true}
+  if(document.getElementById('skroty').style.display==='block'){closeShortcuts();return true}
   return false;
 };
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")&&!window.Android){navigator.serviceWorker.register("sw.js").catch(()=>{})}

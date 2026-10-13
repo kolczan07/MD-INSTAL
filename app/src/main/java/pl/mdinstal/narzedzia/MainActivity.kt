@@ -175,7 +175,7 @@ class MainActivity : Activity() {
                             .setMessage("Dostępna jest nowsza wersja aplikacji MD-INSTAL.\n\nZaktualizuj, aby korzystać z najnowszych funkcji.")
                             .setPositiveButton("Pobierz") { _, _ ->
                                 startActivity(Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/kolczan07/MD-INSTAL/releases/latest")))
+                                    Uri.parse("https://github.com/kolczan07/md-instal_releases/releases/latest")))
                             }
                             .setNegativeButton("Później", null)
                             .show()

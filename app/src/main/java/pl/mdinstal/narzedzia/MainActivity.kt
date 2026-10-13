@@ -191,44 +191,32 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun downloadAndInstall(url: String, fileName: String) {
-        val request = DownloadManager.Request(Uri.parse(url)).apply {
-            setTitle(fileName)
-            setDescription("Pobieranie aktualizacji MD-INSTAL")
-            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            setDestinationInExternalFilesDir(this@MainActivity, Environment.DIRECTORY_DOWNLOADS, fileName)
-        }
-
-        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val downloadId = dm.enqueue(request)
-
-        thread {
-            var downloading = true
-            while (downloading) {
-                val q = DownloadManager.Query().setFilterById(downloadId)
-                val c = dm.query(q)
-                if (c.moveToFirst()) {
-                    val status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                    when (status) {
-                        DownloadManager.STATUS_SUCCESSFUL -> {
-                            downloading = false
-                            val file = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
-                            runOnUiThread { installApk(file) }
-                        }
-                        DownloadManager.STATUS_FAILED -> {
-                            downloading = false
-                            runOnUiThread {
-                                AlertDialog.Builder(this)
-                                    .setMessage("Nie udało się pobrać aktualizacji.")
-                                    .setPositiveButton("OK", null)
-                                    .show()
-                            }
-                        }
-                    }
-                }
-                c.close()
-                if (downloading) Thread.sleep(1000)
+        private fun installApk(file: File) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            startActivity(intent)
+
+            // Usuń plik po 2 minutach (żeby instalator zdążył odczytać)
+            thread {
+                Thread.sleep(120_000)
+                try {
+                    if (file.exists()) file.delete()
+                } catch (e: Exception) {}
+            }
+        } catch (e: Exception) {
+            AlertDialog.Builder(this)
+                .setMessage("Nie udało się otworzyć instalatora: ${e.message}")
+                .setPositiveButton("OK", null)
+                .show()
         }
     }
 

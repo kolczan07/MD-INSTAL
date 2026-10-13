@@ -31,6 +31,15 @@ android {
         }
     }
 
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val vName = versionName ?: "1.0"
+            val vCode = versionCode.toString()
+            output.outputFileName = "MD-INSTAL-${vName}-${vCode}.apk"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

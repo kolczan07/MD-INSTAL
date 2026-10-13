@@ -4,11 +4,14 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.webkit.JavascriptInterface
@@ -19,9 +22,10 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.net.Uri
 import android.widget.EditText
+import androidx.core.content.FileProvider
 import androidx.webkit.WebViewAssetLoader
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
@@ -129,7 +133,6 @@ class MainActivity : Activity() {
         checkForUpdate()
     }
 
-
     /** Drukowanie / zapis do PDF: osobny, niewidoczny WebView z gotowym HTML-em formularza. */
     private fun doPrint(html: String, landscape: Boolean, title: String) {
         val pv = WebView(this)
@@ -142,7 +145,6 @@ class MainActivity : Activity() {
                 val pm = getSystemService(Context.PRINT_SERVICE) as PrintManager
                 val size = if (landscape) PrintAttributes.MediaSize.ISO_A4.asLandscape()
                 else PrintAttributes.MediaSize.ISO_A4.asPortrait()
-                // marginesy w tysięcznych cala: 5 mm (poziomo, schemat) / 4 mm (pionowo, protokół)
                 val m = if (landscape) 197 else 157
                 val attrs = PrintAttributes.Builder()
                     .setMediaSize(size)
@@ -151,7 +153,7 @@ class MainActivity : Activity() {
                 pm.print(title, view.createPrintDocumentAdapter(title), attrs)
             }
         }
-                pv.loadDataWithBaseURL("https://$host/", html, "text/html", "UTF-8", null)
+        pv.loadDataWithBaseURL("https://$host/", html, "text/html", "UTF-8", null)
     }
 
     private fun checkForUpdate() {
@@ -172,10 +174,12 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         AlertDialog.Builder(this)
                             .setTitle("Dostępna nowa wersja")
-                            .setMessage("Dostępna jest nowsza wersja aplikacji MD-INSTAL.\n\nZaktualizuj, aby korzystać z najnowszych funkcji.")
-                            .setPositiveButton("Pobierz") { _, _ ->
-                                startActivity(Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/kolczan07/md-instal_releases/releases/latest")))
+                            .setMessage("Pobrać i zainstalować teraz?")
+                            .setPositiveButton("Pobierz i zainstaluj") { _, _ ->
+                                downloadAndInstall(
+                                    "https://github.com/kolczan07/md-instal_releases/releases/latest/download/MD-INSTAL-latest.apk",
+                                    "MD-INSTAL-latest.apk"
+                                )
                             }
                             .setNegativeButton("Później", null)
                             .show()
@@ -184,6 +188,68 @@ class MainActivity : Activity() {
             } catch (e: Exception) {
                 // brak internetu / błąd — cicho ignorujemy
             }
+        }
+    }
+
+    private fun downloadAndInstall(url: String, fileName: String) {
+        val request = DownloadManager.Request(Uri.parse(url)).apply {
+            setTitle(fileName)
+            setDescription("Pobieranie aktualizacji MD-INSTAL")
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setDestinationInExternalFilesDir(this@MainActivity, Environment.DIRECTORY_DOWNLOADS, fileName)
+        }
+
+        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val downloadId = dm.enqueue(request)
+
+        thread {
+            var downloading = true
+            while (downloading) {
+                val q = DownloadManager.Query().setFilterById(downloadId)
+                val c = dm.query(q)
+                if (c.moveToFirst()) {
+                    val status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                    when (status) {
+                        DownloadManager.STATUS_SUCCESSFUL -> {
+                            downloading = false
+                            val file = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
+                            runOnUiThread { installApk(file) }
+                        }
+                        DownloadManager.STATUS_FAILED -> {
+                            downloading = false
+                            runOnUiThread {
+                                AlertDialog.Builder(this)
+                                    .setMessage("Nie udało się pobrać aktualizacji.")
+                                    .setPositiveButton("OK", null)
+                                    .show()
+                            }
+                        }
+                    }
+                }
+                c.close()
+                if (downloading) Thread.sleep(1000)
+            }
+        }
+    }
+
+    private fun installApk(file: File) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            AlertDialog.Builder(this)
+                .setMessage("Nie udało się otworzyć instalatora: ${e.message}")
+                .setPositiveButton("OK", null)
+                .show()
         }
     }
 

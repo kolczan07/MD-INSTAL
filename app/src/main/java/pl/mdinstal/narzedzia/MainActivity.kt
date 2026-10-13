@@ -126,7 +126,9 @@ class MainActivity : Activity() {
 
         web.addJavascriptInterface(Bridge(), "Android")
         web.loadUrl("https://$host/assets/index.html")
+        checkForUpdate()
     }
+
 
     /** Drukowanie / zapis do PDF: osobny, niewidoczny WebView z gotowym HTML-em formularza. */
     private fun doPrint(html: String, landscape: Boolean, title: String) {
@@ -149,7 +151,40 @@ class MainActivity : Activity() {
                 pm.print(title, view.createPrintDocumentAdapter(title), attrs)
             }
         }
-        pv.loadDataWithBaseURL("https://$host/", html, "text/html", "UTF-8", null)
+                pv.loadDataWithBaseURL("https://$host/", html, "text/html", "UTF-8", null)
+    }
+
+    private fun checkForUpdate() {
+        val currentCode = try {
+            packageManager.getPackageInfo(packageName, 0).versionCode
+        } catch (e: Exception) { return }
+
+        thread {
+            try {
+                val url = URL("https://gist.githubusercontent.com/kolczan07/34cbbbb60f48bb2c9589e62f7c467e5b/raw/8b4ebae4b6e412f527dbddd2f44da621f7ae5f36/mdinstal-version.txt")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                val latestCode = conn.inputStream.bufferedReader().readText().trim().toIntOrNull()
+                conn.disconnect()
+
+                if (latestCode != null && latestCode > currentCode) {
+                    runOnUiThread {
+                        AlertDialog.Builder(this)
+                            .setTitle("Dostępna nowa wersja")
+                            .setMessage("Dostępna jest nowsza wersja aplikacji MD-INSTAL.\n\nZaktualizuj, aby korzystać z najnowszych funkcji.")
+                            .setPositiveButton("Pobierz") { _, _ ->
+                                startActivity(Intent(Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/kolczan07/MD-INSTAL/releases/latest")))
+                            }
+                            .setNegativeButton("Później", null)
+                            .show()
+                    }
+                }
+            } catch (e: Exception) {
+                // brak internetu / błąd — cicho ignorujemy
+            }
+        }
     }
 
     inner class Bridge {

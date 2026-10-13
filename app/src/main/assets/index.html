@@ -100,6 +100,19 @@ function favs(){try{return JSON.parse(localStorage.getItem('fav')||'[]')}catch(e
 function saveFavs(a){try{localStorage.setItem('fav',JSON.stringify(a))}catch(e){}}
 function openRadio(){$('home').style.display='none';$('radio').style.display='block';renderFavs();if(first){first=false;rsearch()}}
 function closeRadio(){$('radio').style.display='none';$('home').style.display='block'}
+function openInfo(){
+  $('home').style.display='none';
+  $('info').style.display='block';
+  var v = '?';
+  if (window.Android && Android.getVersion) {
+    try { v = Android.getVersion(); } catch(e) {}
+  }
+  $('info-version').textContent = v;
+}
+function closeInfo(){
+  $('info').style.display='none';
+  $('home').style.display='block';
+}
 function play(name,url){
   cur={name:name,url:url};au.src=url;au.play().catch(()=>{});
   if('mediaSession' in navigator){

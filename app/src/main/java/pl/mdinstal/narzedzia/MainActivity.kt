@@ -150,6 +150,16 @@ class MainActivity : Activity() {
 
     inner class Bridge {
         @JavascriptInterface
+        fun getVersion(): String {
+            return try {
+                val pi = packageManager.getPackageInfo(packageName, 0)
+                "${pi.versionName} (build ${pi.versionCode})"
+            } catch (e: Exception) {
+                "?"
+            }
+        }
+
+        @JavascriptInterface
         fun printHtml(html: String, landscape: Boolean, title: String) {
             runOnUiThread { doPrint(html, landscape, title) }
         }

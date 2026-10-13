@@ -134,7 +134,6 @@ class MainActivity : Activity() {
         checkForUpdate()
     }
 
-    /** Drukowanie / zapis do PDF: osobny, niewidoczny WebView z gotowym HTML-em formularza. */
     private fun doPrint(html: String, landscape: Boolean, title: String) {
         val pv = WebView(this)
         printWeb = pv
@@ -254,7 +253,67 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun doPickApp() {
+        val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        val apps: List<ResolveInfo> = packageManager.queryIntentActivities(mainIntent, 0)
+            .filter { it.activityInfo.packageName != packageName }
+            .sortedBy { it.loadLabel(packageManager).toString().lowercase() }
+
+        if (apps.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setMessage("Brak dostępnych aplikacji.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        val labels = apps.map { it.loadLabel(packageManager).toString() }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Wybierz aplikację")
+            .setItems(labels) { _, which ->
+                val app = apps[which]
+                val pkg = app.activityInfo.packageName
+                val label = app.loadLabel(packageManager).toString()
+                val jsLabel = label.replace("\\", "\\\\").replace("'", "\\'")
+                web.evaluateJavascript(
+                    "window.onAppPicked && window.onAppPicked('$pkg', '$jsLabel');",
+                    null
+                )
+            }
+            .setNegativeButton("Anuluj", null)
+            .show()
+    }
+
     inner class Bridge {
+        @JavascriptInterface
+        fun pickApp() {
+            runOnUiThread { doPickApp() }
+        }
+
+        @JavascriptInterface
+        fun launchApp(packageName: String) {
+            runOnUiThread {
+                try {
+                    val intent = packageManager.getLaunchIntentForPackage(packageName)
+                    if (intent != null) {
+                        startActivity(intent)
+                    } else {
+                        AlertDialog.Builder(this@MainActivity)
+                            .setMessage("Nie można uruchomić tej aplikacji.")
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                } catch (e: Exception) {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setMessage("Błąd: ${e.message}")
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            }
+        }
+
         @JavascriptInterface
         fun getVersion(): String {
             return try {

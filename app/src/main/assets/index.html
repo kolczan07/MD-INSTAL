@@ -204,6 +204,7 @@ window.addEventListener('message',function(e){
 window.appBack=function(){
   if(document.getElementById('app').style.display==='flex'){closeTool();return true}
   if(document.getElementById('radio').style.display==='block'){closeRadio();return true}
+  if(document.getElementById('info').style.display==='block'){closeInfo();return true}
   return false;
 };
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")&&!window.Android){navigator.serviceWorker.register("sw.js").catch(()=>{})}

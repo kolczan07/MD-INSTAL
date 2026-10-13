@@ -161,7 +161,7 @@ class MainActivity : Activity() {
 
         thread {
             try {
-                val url = URL("https://gist.githubusercontent.com/kolczan07/34cbbbb60f48bb2c9589e62f7c467e5b/raw/8b4ebae4b6e412f527dbddd2f44da621f7ae5f36/mdinstal-version.txt")
+                val url = URL("https://gist.githubusercontent.com/kolczan07/34cbbbb60f48bb2c9589e62f7c467e5b/raw/mdinstal-version.txt")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.connectTimeout = 5000
                 conn.readTimeout = 5000

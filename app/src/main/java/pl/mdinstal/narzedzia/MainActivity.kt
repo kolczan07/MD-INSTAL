@@ -334,14 +334,11 @@ class MainActivity : FragmentActivity() {
                 onSuccess()
             }
         }
-        val prompt = BiometricPrompt(this, executor, callback)
+               val prompt = BiometricPrompt(this, executor, callback)
         val builder = BiometricPrompt.PromptInfo.Builder()
             .setTitle("MD-INSTAL")
             .setSubtitle("Potwierdź tożsamość")
             .setAllowedAuthenticators(authenticators)
-        if (Build.VERSION.SDK_INT < 30) {
-            builder.setNegativeButton("Anuluj", executor) { _, _ -> }
-        }
         prompt.authenticate(builder.build())
     }
 

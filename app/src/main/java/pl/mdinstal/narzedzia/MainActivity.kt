@@ -375,7 +375,30 @@ class MainActivity : FragmentActivity() {
             .show()
     }
 
-        inner class Bridge {
+            inner class Bridge {
+        @JavascriptInterface
+        fun getAppIcon(packageName: String): String {
+            return try {
+                val drawable = packageManager.getApplicationIcon(packageName)
+                val bitmap = android.graphics.Bitmap.createBitmap(
+                    drawable.intrinsicWidth.coerceAtLeast(1),
+                    drawable.intrinsicHeight.coerceAtLeast(1),
+                    android.graphics.Bitmap.Config.ARGB_8888
+                )
+                val canvas = android.graphics.Canvas(bitmap)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+
+                val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 96, 96, true)
+                val baos = java.io.ByteArrayOutputStream()
+                scaled.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, baos)
+                val bytes = baos.toByteArray()
+                android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            } catch (e: Exception) {
+                ""
+            }
+        }
+
         @JavascriptInterface
         fun openIglutech() {
             runOnUiThread {

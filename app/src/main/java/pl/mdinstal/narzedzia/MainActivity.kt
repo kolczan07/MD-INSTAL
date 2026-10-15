@@ -346,7 +346,6 @@ class MainActivity : Activity() {
     }
 
     private fun doPickApp() {
-    private fun doPickApp() {
         val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }

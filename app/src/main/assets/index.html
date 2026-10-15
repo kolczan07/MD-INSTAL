@@ -48,7 +48,8 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   <button class="tile" onclick="openTool('p')"><b>Protokół uruchomienia pompy ciepła</b><span>Tabele do wypełnienia, A4, eksport do PDF</span></button>
   <button class="tile" onclick="openRadio()"><b>Radio internetowe</b><span>Wyszukiwarka stacji, ulubione, gra w tle</span></button>
   <div class="np"></div>
-  <a class="tile" href="https://service.iglutech.eu" target="_blank" rel="noopener"><b>Iglutech Service</b><span>Otwiera service.iglutech.eu w przeglądarce (logowanie z Authenticatorem)</span></a>
+    <button class="tile" onclick="openIglutech()"><b>Iglutech Service</b><span>Otwiera service.iglutech.eu z auto-logowaniem</span></button>
+  <button class="tile" onclick="openSettings()"><b>Ustawienia</b><span>Login i hasło do Iglutech</span></button>
     <button class="tile" onclick="openShortcuts()"><b>Skróty</b><span>Szybki dostęp do ulubionych aplikacji</span></button>
   <button class="tile" onclick="openInfo()"><b>Info</b><span>Wersja aplikacji i informacje</span></button>
 </div>
@@ -83,10 +84,40 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   <div class="rbody">
     <h2>Moje skróty</h2>
     <div id="shortcuts-list"></div>
-    <button class="tile" onclick="addShortcut()" style="border-left-color:#16a34a;margin-top:20px">
+        <button class="tile" onclick="addShortcut()" style="border-left-color:#16a34a;margin-top:20px">
       <b>+ Dodaj skrót</b>
       <span>Wybierz aplikację z listy</span>
     </button>
+  </div>
+</div>
+<div id="settings" style="display:none">
+  <div class="rbar">
+    <button onclick="closeSettings()">← Menu</button>
+    <span>Ustawienia</span>
+  </div>
+  <div class="rbody">
+    <h2>Dane logowania Iglutech</h2>
+    <p class="empty">Login i hasło będą automatycznie wpisywane na stronie logowania Iglutech.</p>
+
+    <label>Login:</label>
+    <input type="text" id="iglu-user" autocomplete="username" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(100,116,139,.5);background:var(--card);color:var(--text);margin-bottom:10px;font:inherit">
+
+    <label>Hasło:</label>
+    <input type="password" id="iglu-pass" autocomplete="current-password" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(100,116,139,.5);background:var(--card);color:var(--text);margin-bottom:10px;font:inherit">
+
+    <label class="chk">
+      <input type="checkbox" id="iglu-remember"> Zaznacz „Remember me" przy logowaniu
+    </label>
+
+    <button class="tile" onclick="saveIgluCreds()" style="border-left-color:#16a34a;margin-top:20px">
+      <b>Zapisz dane</b>
+      <span>Wymaga potwierdzenia tożsamości</span>
+    </button>
+    <button class="tile" onclick="clearIgluCreds()" style="border-left-color:#dc2626">
+      <b>Wyczyść dane</b>
+      <span>Usuwa zapisany login i hasło</span>
+    </button>
+    <p id="iglu-status" class="empty"></p>
   </div>
 </div>
 <audio id="au" preload="none"></audio>
@@ -193,6 +224,54 @@ window.onAppPicked=function(pkg,label){
   saveShortcuts(arr);
   renderShortcuts();
 };
+function openIglutech(){
+  if(window.Android && Android.openIglutech){
+    Android.openIglutech();
+  } else {
+    window.open('https://service.iglutech.eu','_blank');
+  }
+}
+function openSettings(){
+  $('home').style.display='none';
+  $('settings').style.display='block';
+  var u = '';
+  try { if (window.Android && Android.getIglutechUser) u = Android.getIglutechUser(); } catch(e){}
+  $('iglu-user').value = u;
+  $('iglu-pass').value = '';
+  var has = false;
+  try { if (window.Android && Android.hasIglutechCreds) has = Android.hasIglutechCreds(); } catch(e){}
+  $('iglu-status').textContent = has ? 'Dane są zapisane. Wpisz nowe, żeby zmienić.' : '';
+}
+function closeSettings(){
+  $('settings').style.display='none';
+  $('home').style.display='block';
+}
+function saveIgluCreds(){
+  var u = $('iglu-user').value.trim();
+  var p = $('iglu-pass').value;
+  if(!u){ alert('Wpisz login.'); return; }
+  if(!p){ alert('Wpisz hasło.'); return; }
+  var r = $('iglu-remember').checked;
+  if(window.Android && Android.saveIglutechCreds){
+    Android.saveIglutechCreds(u, p, r);
+  }
+}
+function clearIgluCreds(){
+  if(!confirm('Usunąć zapisane dane logowania?')) return;
+  if(window.Android && Android.clearIglutechCreds){
+    Android.clearIglutechCreds();
+  }
+}
+window.onIglutechSaved=function(){
+  $('iglu-pass').value='';
+  $('iglu-status').textContent='Zapisano ✓';
+};
+window.onIglutechCleared=function(){
+  $('iglu-user').value='';
+  $('iglu-pass').value='';
+  $('iglu-remember').checked=false;
+  $('iglu-status').textContent='Wyczyszczono';
+};
 function play(name,url){
   cur={name:name,url:url};au.src=url;au.play().catch(()=>{});
   if('mediaSession' in navigator){
@@ -286,6 +365,7 @@ window.appBack=function(){
   if(document.getElementById('radio').style.display==='block'){closeRadio();return true}
   if(document.getElementById('info').style.display==='block'){closeInfo();return true}
   if(document.getElementById('skroty').style.display==='block'){closeShortcuts();return true}
+  if(document.getElementById('settings').style.display==='block'){closeSettings();return true}
   return false;
 };
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")&&!window.Android){navigator.serviceWorker.register("sw.js").catch(()=>{})}

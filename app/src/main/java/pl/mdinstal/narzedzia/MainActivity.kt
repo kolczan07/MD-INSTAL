@@ -24,6 +24,9 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.webkit.WebViewAssetLoader
 import java.io.File
@@ -31,11 +34,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 
+
 class MainActivity : Activity() {
 
     private lateinit var web: WebView
     private var printWeb: WebView? = null
-    private val host = "appassets.androidplatform.net"
+        private val host = "appassets.androidplatform.net"
+    private var pendingIgluUser: String = ""
+    private var pendingIgluPass: String = ""
+    private var pendingIgluRemember: Boolean = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +72,7 @@ class MainActivity : Activity() {
             displayZoomControls = false
         }
 
-        web.webViewClient = object : WebViewClient() {
+                web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest?
@@ -77,6 +84,7 @@ class MainActivity : Activity() {
             ): Boolean {
                 val u = request?.url ?: return false
                 val s = u.scheme
+                if (u.host?.endsWith("iglutech.eu") == true) return false
                 if ((s == "http" || s == "https") && u.host != host) {
                     try {
                         startActivity(Intent(Intent.ACTION_VIEW, u))
@@ -86,8 +94,26 @@ class MainActivity : Activity() {
                 }
                 return false
             }
-        }
 
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                if (url?.contains("iglutech.eu/Account/Login") == true) {
+                    val js = """
+                        (function(){
+                          try {
+                            var u = document.getElementById('Input_Username');
+                            var p = document.getElementById('Input_Password');
+                            var r = document.getElementById('Input_RememberLogin');
+                            if (u) u.value = ${jsString(pendingIgluUser)};
+                            if (p) p.value = ${jsString(pendingIgluPass)};
+                            if (r) r.checked = $pendingIgluRemember;
+                          } catch(e) {}
+                        })();
+                    """.trimIndent()
+                    view?.evaluateJavascript(js, null)
+                }
+            }
+        }
         web.webChromeClient = object : WebChromeClient() {
             override fun onJsAlert(
                 view: WebView?, url: String?, message: String?, result: JsResult?
@@ -269,6 +295,57 @@ class MainActivity : Activity() {
         }
     }
 
+        private fun jsString(s: String): String {
+        val sb = StringBuilder("\"")
+        for (c in s) {
+            when (c) {
+                '\\' -> sb.append("\\\\")
+                '"' -> sb.append("\\\"")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                else -> if (c < ' ') sb.append(String.format("\\u%04x", c.code)) else sb.append(c)
+            }
+        }
+        sb.append("\"")
+        return sb.toString()
+    }
+
+    private fun authenticateBiometric(onSuccess: () -> Unit) {
+        val authenticators = if (Build.VERSION.SDK_INT >= 30) {
+            BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        } else {
+            BiometricManager.Authenticators.BIOMETRIC_WEAK
+        }
+
+        val canAuth = BiometricManager.from(this).canAuthenticate(authenticators)
+        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+            onSuccess()
+            return
+        }
+
+        val executor = ContextCompat.getMainExecutor(this)
+        val callback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(
+                result: BiometricPrompt.AuthenticationResult
+            ) {
+                super.onAuthenticationSucceeded(result)
+                onSuccess()
+            }
+        }
+        val prompt = BiometricPrompt(this, executor, callback)
+        val builder = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("MD-INSTAL")
+            .setSubtitle("Potwierdź tożsamość")
+            .setAllowedAuthenticators(authenticators)
+        if (Build.VERSION.SDK_INT < 30) {
+            builder.setNegativeButton("Anuluj", executor) { _, _ -> }
+        }
+        prompt.authenticate(builder.build())
+    }
+
+    private fun doPickApp() {
     private fun doPickApp() {
         val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -302,7 +379,58 @@ class MainActivity : Activity() {
             .show()
     }
 
-    inner class Bridge {
+        inner class Bridge {
+        @JavascriptInterface
+        fun openIglutech() {
+            runOnUiThread {
+                pendingIgluUser = PasswordStore.load(this@MainActivity, "iglu_user") ?: ""
+                pendingIgluPass = PasswordStore.load(this@MainActivity, "iglu_pass") ?: ""
+                pendingIgluRemember = PasswordStore.load(this@MainActivity, "iglu_remember") == "true"
+
+                if (pendingIgluUser.isEmpty()) {
+                    web.loadUrl("https://service.iglutech.eu")
+                    return@runOnUiThread
+                }
+                authenticateBiometric {
+                    web.loadUrl("https://service.iglutech.eu")
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun saveIglutechCreds(user: String, pass: String, remember: Boolean) {
+            runOnUiThread {
+                authenticateBiometric {
+                    PasswordStore.save(this@MainActivity, "iglu_user", user)
+                    PasswordStore.save(this@MainActivity, "iglu_pass", pass)
+                    PasswordStore.save(this@MainActivity, "iglu_remember", if (remember) "true" else "false")
+                    web.evaluateJavascript("window.onIglutechSaved && window.onIglutechSaved();", null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun clearIglutechCreds() {
+            runOnUiThread {
+                authenticateBiometric {
+                    PasswordStore.delete(this@MainActivity, "iglu_user")
+                    PasswordStore.delete(this@MainActivity, "iglu_pass")
+                    PasswordStore.delete(this@MainActivity, "iglu_remember")
+                    web.evaluateJavascript("window.onIglutechCleared && window.onIglutechCleared();", null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun getIglutechUser(): String {
+            return PasswordStore.load(this@MainActivity, "iglu_user") ?: ""
+        }
+
+        @JavascriptInterface
+        fun hasIglutechCreds(): Boolean {
+            return PasswordStore.has(this@MainActivity, "iglu_user")
+        }
+
         @JavascriptInterface
         fun pickApp() {
             runOnUiThread { doPickApp() }

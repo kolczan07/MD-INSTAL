@@ -348,7 +348,13 @@ window.onAppPicked=function(pkg,label){
     alert('Ta aplikacja jest już dodana.');
     return;
   }
-  arr.push({pkg:pkg,label:label});
+  let icon = '';
+  try {
+    if (window.Android && Android.getAppIcon) {
+      icon = Android.getAppIcon(pkg);
+    }
+  } catch(e) {}
+  arr.push({pkg:pkg,label:label,icon:icon});
   saveShortcuts(arr);
   renderShortcuts();
 };

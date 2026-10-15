@@ -61,7 +61,7 @@ class MainActivity : FragmentActivity() {
         web = WebView(this)
         setContentView(web)
 
-        web.settings.apply {
+                web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false
@@ -70,6 +70,13 @@ class MainActivity : FragmentActivity() {
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
+            if (Build.VERSION.SDK_INT >= 33) {
+                @Suppress("DEPRECATION")
+                setAlgorithmicDarkeningAllowed(true)
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                @Suppress("DEPRECATION")
+                forceDark = android.webkit.WebSettings.FORCE_DARK_AUTO
+            }
         }
 
                 web.webViewClient = object : WebViewClient() {

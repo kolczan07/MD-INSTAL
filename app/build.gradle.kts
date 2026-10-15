@@ -11,8 +11,8 @@ android {
         applicationId = "pl.mdinstal.narzedzia"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 8
+        versionName = "1.7"
     }
 
     signingConfigs {
@@ -49,5 +49,6 @@ android {
 
 dependencies {
     implementation("androidx.webkit:webkit:1.11.0")
-    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }

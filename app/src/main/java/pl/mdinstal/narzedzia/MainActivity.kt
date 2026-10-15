@@ -1,7 +1,7 @@
 package pl.mdinstal.narzedzia
 
 import android.Manifest
-import andrprivate val host = "appassets.androidplatform.net"oid.annotation.SuppressLint
+import android.annotation.SuppressLint
 import androidx.fragment.app.FragmentActivity
 import android.app.AlertDialog
 import android.app.DownloadManager

@@ -67,7 +67,15 @@ iframe{flex:1;width:100%;border:0;background:#fff}
 .np .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .np button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:8px;padding:8px 12px;font:inherit}
 .empty{color:var(--sub);font-size:.9rem}
-</style></head><body>
+.shortcuts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.shortcut-tile{position:relative;display:flex;flex-direction:column;align-items:center;padding:12px 6px;background:var(--card);border:1px solid rgba(100,116,139,.35);border-radius:12px;cursor:pointer;transition:transform .1s}
+.shortcut-tile:active{transform:scale(.96)}
+.shortcut-icon{width:56px;height:56px;border-radius:12px;cursor:pointer;display:block}
+.shortcut-label{font-size:.75rem;color:var(--text);text-align:center;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.shortcut-delete{position:absolute;top:4px;right:4px;background:rgba(220,38,38,.9);color:#fff;border:0;border-radius:50%;width:22px;height:22px;font-size:.7rem;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
 <div id="home">
   <header class="app-header">
     <div class="app-header-left">
@@ -313,27 +321,41 @@ function renderShortcuts(){
     el.append(e);
     return;
   }
+  const grid = document.createElement('div');
+  grid.className = 'shortcuts-grid';
   a.forEach(function(s,i){
     const d=document.createElement('div');
-    d.className='st';
-    const n=document.createElement('span');
-    n.className='n';
-    n.textContent=s.label;
-    const run=document.createElement('button');
-    run.textContent='▶';
-    run.onclick=function(){ if(window.Android&&Android.launchApp) Android.launchApp(s.pkg); };
+    d.className='shortcut-tile';
+
+    const img=document.createElement('img');
+    img.className='shortcut-icon';
+    if(s.icon){
+      img.src='data:image/png;base64,'+s.icon;
+    } else {
+      img.src='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2394a3b8"><rect width="24" height="24" rx="4"/></svg>';
+    }
+    img.onclick=function(){ if(window.Android&&Android.launchApp) Android.launchApp(s.pkg); };
+
+    const lbl=document.createElement('span');
+    lbl.className='shortcut-label';
+    lbl.textContent=s.label;
+
     const del=document.createElement('button');
+    del.className='shortcut-delete';
     del.textContent='✕';
-    del.onclick=function(){
+    del.onclick=function(e){
+      e.stopPropagation();
       if(!confirm('Usunąć skrót „'+s.label+'"?'))return;
       const arr=getShortcuts();
       arr.splice(i,1);
       saveShortcuts(arr);
       renderShortcuts();
     };
-    d.append(n,run,del);
-    el.append(d);
+
+    d.append(img,lbl,del);
+    grid.append(d);
   });
+  el.append(grid);
 }
 function addShortcut(){
   if(window.Android&&Android.pickApp){

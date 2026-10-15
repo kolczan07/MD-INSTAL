@@ -1,8 +1,8 @@
 package pl.mdinstal.narzedzia
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.app.Activity
+import andrprivate val host = "appassets.androidplatform.net"oid.annotation.SuppressLint
+import androidx.fragment.app.FragmentActivity
 import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.Context
@@ -35,11 +35,11 @@ import java.net.URL
 import kotlin.concurrent.thread
 
 
-class MainActivity : Activity() {
+class MainActivity : FragmentActivity() {
 
     private lateinit var web: WebView
     private var printWeb: WebView? = null
-        private val host = "appassets.androidplatform.net"
+    private val host = "appassets.androidplatform.net"
     private var pendingIgluUser: String = ""
     private var pendingIgluPass: String = ""
     private var pendingIgluRemember: Boolean = false

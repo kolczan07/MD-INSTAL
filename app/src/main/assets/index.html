@@ -16,10 +16,34 @@ body{font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text
 h1{font-size:1.3rem;margin-bottom:4px}.sub{color:var(--sub);font-size:.9rem;margin-bottom:22px}
 .logo{background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:20px;text-align:center}.logo img{width:100%;max-width:340px;height:auto}
 a.tile{text-decoration:none}
-.tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.tile{display:flex;flex-direction:column;aspect-ratio:1/1;background:var(--card);color:var(--text);border:1px solid rgba(100,116,139,.35);border-top:6px solid var(--acc);border-radius:12px;padding:14px;font:inherit;cursor:pointer;text-align:center;justify-content:center;align-items:center;text-decoration:none}
-.tile b{display:block;font-size:1rem;margin-bottom:6px;font-weight:700;color:var(--text)}
-.tile span{color:var(--sub);font-size:.8rem;line-height:1.3}
+/* Nagłówek */
+.app-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+.app-header-left{flex:1}
+.app-title{font-size:2rem;font-weight:800;letter-spacing:-0.02em;color:var(--text);margin:0 0 4px 0;line-height:1.1}
+.app-subtitle{font-size:1rem;font-weight:600;color:var(--text);margin:0 0 2px 0}
+.app-desc{font-size:.85rem;color:var(--sub);margin:0}
+.app-header-btn{background:none;border:1px solid rgba(100,116,139,.35);color:var(--acc);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-left:12px}
+.app-header-btn:active{background:rgba(37,99,235,.1)}
+.tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.tool-card,.info-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;background:var(--card);color:var(--text);border:1px solid rgba(100,116,139,.2);border-radius:16px;padding:16px;font:inherit;cursor:pointer;overflow:hidden;transition:transform .1s, box-shadow .1s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.tool-card:active,.info-card:active{transform:scale(.98);background:rgba(37,99,235,.04)}
+.tool-card{min-height:170px}
+.tool-icon{width:44px;height:44px;border-radius:12px;background:rgba(37,99,235,.1);color:var(--acc);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0}
+.tool-title{font-size:.95rem;font-weight:700;color:var(--text);line-height:1.25;margin-bottom:6px}
+.tool-desc{font-size:.8rem;color:var(--sub);line-height:1.35;flex:1}
+.tool-arrow{position:absolute;top:16px;right:16px;color:var(--acc);font-size:1.5rem;line-height:1;font-weight:300}
+.info-card{flex-direction:row;align-items:center;gap:14px;padding:16px;min-height:auto}
+.info-card .tool-icon{margin-bottom:0}
+.info-card .tool-arrow{position:static;margin-left:auto}
+.info-text{flex:1;min-width:0}
+.info-text .tool-title{margin-bottom:2px}
+.app-footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:32px;padding:16px 0 8px 0;opacity:.7}
+.footer-brand{font-size:1rem;font-weight:800;color:var(--text);letter-spacing:-0.02em}
+.footer-line{width:40px;height:2px;background:var(--acc)}
+.footer-tech{font-size:.7rem;font-weight:700;color:var(--acc);letter-spacing:.15em}
+.action-btn{display:block;width:100%;text-align:left;background:var(--card);color:var(--text);border:1px solid rgba(100,116,139,.35);border-left:6px solid var(--acc);border-radius:12px;padding:14px 16px;margin-bottom:12px;font:inherit;cursor:pointer}
+.action-btn b{display:block;font-size:.95rem;font-weight:700;margin-bottom:4px;color:var(--text)}
+.action-btn span{color:var(--sub);font-size:.8rem;line-height:1.3}
 #app{display:none;height:100%;flex-direction:column}
 #bar{background:var(--bar);color:#fff;display:flex;align-items:center;gap:12px;padding:8px 12px}
 #bar button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600}
@@ -45,17 +69,117 @@ iframe{flex:1;width:100%;border:0;background:#fff}
 .empty{color:var(--sub);font-size:.9rem}
 </style></head><body>
 <div id="home">
-  <div class="logo"><img src="data:image/jpeg;base64,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" alt="MD-INSTAL"></div>
-  <p class="sub">Wybierz narzędzie</p>
-  <div class="tile-grid">
-    <button class="tile" onclick="openTool('g')"><b>Generator</b><span>schematów</span></button>
-    <button class="tile" onclick="openTool('p')"><b>Protokół</b><span>pompy ciepła</span></button>
-    <button class="tile" onclick="openRadio()"><b>Radio</b><span>internetowe</span></button>
-    <button class="tile" onclick="openIglutech()"><b>Iglutech</b><span>Service</span></button>
-    <button class="tile" onclick="openShortcuts()"><b>Skróty</b><span>do aplikacji</span></button>
-    <button class="tile" onclick="openSettings()"><b>Ustawienia</b><span>Iglutech</span></button>
-    <button class="tile" onclick="openInfo()"><b>Info</b><span>wersja</span></button>
+  <header class="app-header">
+    <div class="app-header-left">
+      <h1 class="app-title">MD-INSTAL</h1>
+      <p class="app-subtitle">Panel techniczny</p>
+      <p class="app-desc">Narzędzia i serwis</p>
+    </div>
+    <button class="app-header-btn" onclick="openSettings()" aria-label="Ustawienia">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="tools-grid">
+    <button class="tool-card" onclick="openTool('g')">
+      <div class="tool-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </div>
+      <div class="tool-title">Generator schematów</div>
+      <div class="tool-desc">Schemat jednokreskowy ZK-TL, A4 poziomo, eksport do PDF</div>
+      <div class="tool-arrow">›</div>
+    </button>
+
+    <button class="tool-card" onclick="openTool('p')">
+      <div class="tool-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+        </svg>
+      </div>
+      <div class="tool-title">Protokół uruchomienia pompy ciepła</div>
+      <div class="tool-desc">Tabele do wypełnienia, A4, eksport do PDF</div>
+      <div class="tool-arrow">›</div>
+    </button>
+
+    <button class="tool-card" onclick="openRadio()">
+      <div class="tool-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 10v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10"/>
+          <rect x="2" y="6" width="20" height="4" rx="1"/>
+          <circle cx="12" cy="16" r="3"/>
+        </svg>
+      </div>
+      <div class="tool-title">Radio internetowe</div>
+      <div class="tool-desc">Wyszukiwarka stacji, ulubione, gra w tle</div>
+      <div class="tool-arrow">›</div>
+    </button>
+
+    <button class="tool-card" onclick="openIglutech()">
+      <div class="tool-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+        </svg>
+      </div>
+      <div class="tool-title">Iglutech Service</div>
+      <div class="tool-desc">Otwiera service.iglutech.eu z auto-logowaniem</div>
+      <div class="tool-arrow">›</div>
+    </button>
+
+    <button class="tool-card" onclick="openSettings()">
+      <div class="tool-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div class="tool-title">Ustawienia</div>
+      <div class="tool-desc">Login i hasło do Iglutech</div>
+      <div class="tool-arrow">›</div>
+    </button>
+
+    <button class="tool-card" onclick="openShortcuts()">
+      <div class="tool-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/>
+          <rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+      <div class="tool-title">Skróty</div>
+      <div class="tool-desc">Szybki dostęp do ulubionych aplikacji</div>
+      <div class="tool-arrow">›</div>
+    </button>
   </div>
+
+  <button class="info-card" onclick="openInfo()">
+    <div class="tool-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+    </div>
+    <div class="info-text">
+      <div class="tool-title">Info</div>
+      <div class="tool-desc">Wersja aplikacji i informacje</div>
+    </div>
+    <div class="tool-arrow">›</div>
+  </button>
+
+  <footer class="app-footer">
+    <div class="footer-brand">MD-INSTAL</div>
+    <div class="footer-line"></div>
+    <div class="footer-tech">TECH</div>
+  </footer>
 </div>
 <div id="app"><div id="bar"><button onclick="closeTool()">← Menu</button><span id="ttl"></span></div><iframe id="fr"></iframe></div>
 <div id="radio">
@@ -88,7 +212,7 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   <div class="rbody">
     <h2>Moje skróty</h2>
     <div id="shortcuts-list"></div>
-        <button class="tile" onclick="addShortcut()" style="border-left-color:#16a34a;margin-top:20px">
+        <button class="action-btn" onclick="addShortcut()" style="border-left-color:#16a34a;margin-top:20px">
       <b>+ Dodaj skrót</b>
       <span>Wybierz aplikację z listy</span>
     </button>
@@ -113,11 +237,11 @@ iframe{flex:1;width:100%;border:0;background:#fff}
       <input type="checkbox" id="iglu-remember"> Zaznacz „Remember me" przy logowaniu
     </label>
 
-    <button class="tile" onclick="saveIgluCreds()" style="border-left-color:#16a34a;margin-top:20px">
+    <button class="action-btn" onclick="saveIgluCreds()" style="border-left-color:#16a34a;margin-top:20px">
       <b>Zapisz dane</b>
       <span>Wymaga potwierdzenia tożsamości</span>
     </button>
-    <button class="tile" onclick="clearIgluCreds()" style="border-left-color:#dc2626">
+    <button class="action-btn" onclick="clearIgluCreds()" style="border-left-color:#dc2626">
       <b>Wyczyść dane</b>
       <span>Usuwa zapisany login i hasło</span>
     </button>

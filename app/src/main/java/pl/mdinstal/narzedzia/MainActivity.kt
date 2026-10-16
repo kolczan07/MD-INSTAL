@@ -8,6 +8,7 @@ import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Build
@@ -383,6 +384,45 @@ class MainActivity : FragmentActivity() {
     }
 
             inner class Bridge {
+        @JavascriptInterface
+        fun getLocation(): String {
+            return try {
+                // Sprawdź zgodę na lokalizację
+                if (Build.VERSION.SDK_INT >= 23 &&
+                    checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                    checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    // Poproś o zgodę
+                    runOnUiThread {
+                        requestPermissions(
+                            arrayOf(
+                                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                android.Manifest.permission.ACCESS_COARSE_LOCATION
+                            ),
+                            2
+                        )
+                    }
+                    return ""
+                }
+
+                val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                var loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                if (loc == null) {
+                    loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                }
+                if (loc == null) {
+                    loc = lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+                }
+                if (loc != null) {
+                    "${loc.latitude},${loc.longitude}"
+                } else {
+                    ""
+                }
+            } catch (e: Exception) {
+                ""
+            }
+        }
+
         @JavascriptInterface
         fun getAppIcon(packageName: String): String {
             return try {

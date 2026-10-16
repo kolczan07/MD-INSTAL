@@ -11,8 +11,8 @@ android {
         applicationId = "pl.mdinstal.narzedzia"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "2.0"
+        versionCode = 11
+        versionName = "2.1"
     }
 
     signingConfigs {

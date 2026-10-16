@@ -513,11 +513,37 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION")
     override fun onBackPressed() {
+        // Sprawdź, czy obecny URL to index.html (menu apki)
+        val currentUrl = web.url ?: ""
+        val isMenu = currentUrl.contains("assets/index.html")
+
+        if (!isMenu) {
+            // Jesteśmy poza menu (np. Iglutech, zewnętrzna strona)
+            if (web.canGoBack()) {
+                // Cofnij w historii WebView
+                web.goBack()
+            } else {
+                // Brak historii — wróć do menu
+                web.loadUrl("https://$host/assets/index.html")
+            }
+            return
+        }
+
+        // Jesteśmy w menu — pytaj JS
         web.evaluateJavascript(
             "(function(){return window.appBack?window.appBack():false})()"
-        ) { r -> if (r != "true") moveTaskToBack(true) }
+        ) { r ->
+            if (r != "true") {
+                // JS nie obsłużył — sprawdź historię
+                if (web.canGoBack()) {
+                    web.goBack()
+                } else {
+                    moveTaskToBack(true)
+                }
+            }
+        }
     }
 
     override fun onDestroy() {

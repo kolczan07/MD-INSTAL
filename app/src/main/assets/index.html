@@ -450,6 +450,109 @@ function applyTheme(){
   else if(mode === 'light') html.classList.add('light');
 }
 applyTheme();
+
+// ===== POGODA =====
+function openWeather(){
+  $('home').style.display='none';
+  $('weather').style.display='block';
+  $('weather-content').innerHTML='<p class="empty">Ładowanie…</p>';
+  $('weather-manual').style.display='none';
+  loadWeather();
+}
+function closeWeather(){
+  $('weather').style.display='none';
+  $('home').style.display='block';
+}
+function loadWeather(){
+  var lat=null, lon=null;
+  try {
+    if (window.Android && Android.getLocation) {
+      var loc = Android.getLocation();
+      if (loc && loc.indexOf(',')>0) {
+        var parts = loc.split(',');
+        lat = parseFloat(parts[0]);
+        lon = parseFloat(parts[1]);
+      }
+    }
+  } catch(e){}
+  if (lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon)) {
+    fetchWeather(lat, lon, null);
+  } else {
+    $('weather-content').innerHTML='<p class="empty">Brak dostępu do lokalizacji.</p>';
+    $('weather-manual').style.display='block';
+  }
+}
+function loadWeatherByCity(){
+  var city = $('weather-city').value.trim();
+  if(!city){ alert('Wpisz miasto.'); return; }
+  $('weather-content').innerHTML='<p class="empty">Szukam miasta…</p>';
+  fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(city)+'&count=1&language=pl&format=json')
+    .then(function(r){return r.json()})
+    .then(function(data){
+      if(!data.results || !data.results.length){
+        $('weather-content').innerHTML='<p class="empty">Nie znaleziono miasta.</p>';
+        return;
+      }
+      var r = data.results[0];
+      fetchWeather(r.latitude, r.longitude, r.name);
+    })
+    .catch(function(){
+      $('weather-content').innerHTML='<p class="empty">Błąd wyszukiwania.</p>';
+    });
+}
+function fetchWeather(lat, lon, cityName){
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe/Warsaw&forecast_days=7';
+  fetch(url)
+    .then(function(r){return r.json()})
+    .then(function(data){ renderWeather(data, cityName); })
+    .catch(function(){
+      $('weather-content').innerHTML='<p class="empty">Błąd pobierania pogody.</p>';
+    });
+}
+function weatherIcon(code){
+  if(code===0) return '☀️';
+  if(code>=1 && code<=3) return '⛅';
+  if(code>=45 && code<=48) return '🌫️';
+  if(code>=51 && code<=67) return '🌧️';
+  if(code>=71 && code<=77) return '❄️';
+  if(code>=80 && code<=82) return '🌧️';
+  if(code>=85 && code<=86) return '❄️';
+  if(code>=95) return '⛈️';
+  return '🌤️';
+}
+function weatherDay(dateStr){
+  var d = new Date(dateStr+'T00:00:00');
+  var dni = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+  return dni[d.getDay()];
+}
+function renderWeather(data, cityName){
+  var el = $('weather-content');
+  el.innerHTML = '';
+  var daily = data.daily;
+  if(!daily || !daily.time || !daily.time.length){
+    el.innerHTML='<p class="empty">Brak danych.</p>';
+    return;
+  }
+  var html = '';
+  if(cityName) html += '<h2 style="margin-bottom:12px">'+cityName+'</h2>';
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+  for(var i=0;i<daily.time.length;i++){
+    var date = daily.time[i];
+    var code = daily.weather_code[i];
+    var tmax = Math.round(daily.temperature_2m_max[i]);
+    var tmin = Math.round(daily.temperature_2m_min[i]);
+    var day = (i===0) ? 'Dziś' : (i===1) ? 'Jutro' : weatherDay(date);
+    html += '<div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid rgba(100,116,139,.35);border-radius:12px;padding:12px 14px">';
+    html += '<div style="flex:1;font-weight:600">'+day+'</div>';
+    html += '<div style="font-size:1.6rem">'+weatherIcon(code)+'</div>';
+    html += '<div style="min-width:90px;text-align:right"><b>'+tmax+'°</b> <span style="color:var(--sub)">/ '+tmin+'°</span></div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+// ===== KONIEC POGODY =====
+
 function saveIgluCreds(){
   var u = $('iglu-user').value.trim();
   var p = $('iglu-pass').value;
@@ -571,6 +674,7 @@ window.appBack=function(){
   if(document.getElementById('iglusettings').style.display==='block'){closeIgluSettings();return true}
   if(document.getElementById('settings').style.display==='block'){closeSettings();return true}
   if(document.getElementById('skroty').style.display==='block'){closeShortcuts();return true}
+  if(document.getElementById('weather').style.display==='block'){closeWeather();return true}
   return false;
 };
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")&&!window.Android){navigator.serviceWorker.register("sw.js").catch(()=>{})}

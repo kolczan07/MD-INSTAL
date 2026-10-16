@@ -9,6 +9,8 @@
 <style>
 :root{--bg:#f1f5f9;--card:#fff;--text:#0f172a;--sub:#475569;--acc:#2563eb;--bar:#0f172a}
 @media (prefers-color-scheme:dark){:root{--bg:#0b1220;--card:#162033;--text:#f1f5f9;--sub:#94a3b8}}
+html.dark{--bg:#0b1220;--card:#162033;--text:#f1f5f9;--sub:#94a3b8;--bar:#0f172a}
+html.light{--bg:#f1f5f9;--card:#fff;--text:#0f172a;--sub:#475569;--acc:#2563eb;--bar:#0f172a}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%}
 body{font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -141,18 +143,6 @@ iframe{flex:1;width:100%;border:0;background:#fff}
       <div class="tool-arrow">›</div>
     </button>
 
-    <button class="tool-card" onclick="openSettings()">
-      <div class="tool-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-          <circle cx="12" cy="7" r="4"/>
-        </svg>
-      </div>
-      <div class="tool-title">Ustawienia</div>
-      <div class="tool-desc">Login i hasło do Iglutech</div>
-      <div class="tool-arrow">›</div>
-    </button>
-
     <button class="tool-card" onclick="openShortcuts()">
       <div class="tool-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -167,21 +157,6 @@ iframe{flex:1;width:100%;border:0;background:#fff}
       <div class="tool-arrow">›</div>
     </button>
   </div>
-
-  <button class="info-card" onclick="openInfo()">
-    <div class="tool-icon">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="16" x2="12" y2="12"/>
-        <line x1="12" y1="8" x2="12.01" y2="8"/>
-      </svg>
-    </div>
-    <div class="info-text">
-      <div class="tool-title">Info</div>
-      <div class="tool-desc">Wersja aplikacji i informacje</div>
-    </div>
-    <div class="tool-arrow">›</div>
-  </button>
 
   <footer class="app-footer">
     <div class="footer-brand">MD-INSTAL</div>
@@ -230,6 +205,25 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   <div class="rbar">
     <button onclick="closeSettings()">← Menu</button>
     <span>Ustawienia</span>
+  </div>
+  <div class="rbody">
+    <h2>Motyw aplikacji</h2>
+    <button class="action-btn" onclick="setTheme('light')"><b>☀️ Jasny</b><span>Zawsze jasny</span></button>
+    <button class="action-btn" onclick="setTheme('dark')"><b>🌙 Ciemny</b><span>Zawsze ciemny</span></button>
+    <button class="action-btn" onclick="setTheme('system')"><b>⚙️ Systemowy</b><span>Zgodnie z ustawieniami telefonu</span></button>
+
+    <h2 style="margin-top:24px">Logowanie</h2>
+    <button class="action-btn" onclick="openIgluSettings()" style="border-left-color:#16a34a"><b>Ustawienia logowania Iglutech</b><span>Login i hasło do portalu</span></button>
+
+    <h2 style="margin-top:24px">O aplikacji</h2>
+    <button class="action-btn" onclick="openInfo()"><b>O aplikacji</b><span>Wersja, informacje, autor</span></button>
+  </div>
+</div>
+
+<div id="iglusettings" style="display:none">
+  <div class="rbar">
+    <button onclick="closeIgluSettings()">← Ustawienia</button>
+    <span>Iglutech</span>
   </div>
   <div class="rbody">
     <h2>Dane logowania Iglutech</h2>
@@ -390,6 +384,14 @@ function openIglutech(){
 function openSettings(){
   $('home').style.display='none';
   $('settings').style.display='block';
+}
+function closeSettings(){
+  $('settings').style.display='none';
+  $('home').style.display='block';
+}
+function openIgluSettings(){
+  $('settings').style.display='none';
+  $('iglusettings').style.display='block';
   var u = '';
   try { if (window.Android && Android.getIglutechUser) u = Android.getIglutechUser(); } catch(e){}
   $('iglu-user').value = u;
@@ -398,10 +400,22 @@ function openSettings(){
   try { if (window.Android && Android.hasIglutechCreds) has = Android.hasIglutechCreds(); } catch(e){}
   $('iglu-status').textContent = has ? 'Dane są zapisane. Wpisz nowe, żeby zmienić.' : '';
 }
-function closeSettings(){
-  $('settings').style.display='none';
-  $('home').style.display='block';
+function closeIgluSettings(){
+  $('iglusettings').style.display='none';
+  $('settings').style.display='block';
 }
+function setTheme(mode){
+  localStorage.setItem('theme', mode);
+  applyTheme();
+}
+function applyTheme(){
+  var mode = localStorage.getItem('theme') || 'system';
+  var html = document.documentElement;
+  html.classList.remove('dark','light');
+  if(mode === 'dark') html.classList.add('dark');
+  else if(mode === 'light') html.classList.add('light');
+}
+applyTheme();
 function saveIgluCreds(){
   var u = $('iglu-user').value.trim();
   var p = $('iglu-pass').value;
@@ -520,8 +534,9 @@ window.appBack=function(){
   if(document.getElementById('app').style.display==='flex'){closeTool();return true}
   if(document.getElementById('radio').style.display==='block'){closeRadio();return true}
   if(document.getElementById('info').style.display==='block'){closeInfo();return true}
-  if(document.getElementById('skroty').style.display==='block'){closeShortcuts();return true}
+  if(document.getElementById('iglusettings').style.display==='block'){closeIgluSettings();return true}
   if(document.getElementById('settings').style.display==='block'){closeSettings();return true}
+  if(document.getElementById('skroty').style.display==='block'){closeShortcuts();return true}
   return false;
 };
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")&&!window.Android){navigator.serviceWorker.register("sw.js").catch(()=>{})}

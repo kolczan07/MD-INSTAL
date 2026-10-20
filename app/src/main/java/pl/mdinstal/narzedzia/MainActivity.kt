@@ -2,14 +2,15 @@ package pl.mdinstal.narzedzia
 
 import android.Manifest
 import android.annotation.SuppressLint
-import androidx.fragment.app.FragmentActivity
 import android.app.AlertDialog
 import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.content.pm.ResolveInfo
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -29,25 +30,34 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.fragment.app.FragmentActivity
 import androidx.webkit.WebViewAssetLoader
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
-import android.media.MediaMetadata
-import android.media.session.MediaSession
-import android.media.session.PlaybackState
 
 
 class MainActivity : FragmentActivity() {
 
     private lateinit var web: WebView
-    private var mediaSession: MediaSession? = null
     private var printWeb: WebView? = null
     private val host = "appassets.androidplatform.net"
     private var pendingIgluUser: String = ""
     private var pendingIgluPass: String = ""
     private var pendingIgluRemember: Boolean = false
+
+    /** Odbiera polecenia play/pause/stop z RadioService (z MediaSession). */
+    private val jsCallReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val call = intent?.getStringExtra(RadioService.EXTRA_JS_CALL) ?: return
+            // call to np. "onMediaPlayPause(true)" albo "onMediaStop()"
+            val js = "(function(){try{ if(window.$call) window.$call; else $call; }catch(e){}})()"
+            // Prościej: wykonaj dokładnie to, co przyszło, ale z guardem
+            val safe = "(function(){try{ $call; }catch(e){}})()"
+            web.evaluateJavascript(safe, null)
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +76,7 @@ class MainActivity : FragmentActivity() {
         web = WebView(this)
         setContentView(web)
 
-                web.settings.apply {
+        web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false
@@ -84,7 +94,7 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-                web.webViewClient = object : WebViewClient() {
+        web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest?
@@ -126,6 +136,7 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+
         web.webChromeClient = object : WebChromeClient() {
             override fun onJsAlert(
                 view: WebView?, url: String?, message: String?, result: JsResult?
@@ -167,10 +178,18 @@ class MainActivity : FragmentActivity() {
             }
         }
 
+        // Rejestracja odbiorcy poleceń z RadioService
+        val filter = IntentFilter(RadioService.ACTION_JS_CALL)
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(jsCallReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(jsCallReceiver, filter)
+        }
+
         web.addJavascriptInterface(Bridge(), "Android")
         web.loadUrl("https://$host/assets/index.html")
         checkForUpdate()
-        initMediaSession()
     }
 
     private fun doPrint(html: String, landscape: Boolean, title: String) {
@@ -229,37 +248,7 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
-        private fun initMediaSession() {
-        mediaSession = MediaSession(this, "MD-INSTAL").apply {
-            setCallback(object : MediaSession.Callback() {
-                override fun onPlay() {
-                    runOnUiThread {
-                        web.evaluateJavascript(
-                            "(function(){if(window.onMediaPlayPause)window.onMediaPlayPause(true);})()",
-                            null
-                        )
-                    }
-                }
-                override fun onPause() {
-                    runOnUiThread {
-                        web.evaluateJavascript(
-                            "(function(){if(window.onMediaPlayPause)window.onMediaPlayPause(false);})()",
-                            null
-                        )
-                    }
-                }
-                override fun onStop() {
-                    runOnUiThread {
-                        web.evaluateJavascript(
-                            "(function(){if(window.onMediaStop)window.onMediaStop();})()",
-                            null
-                        )
-                    }
-                }
-            })
-            isActive = true
-        }
-    }
+
     private fun downloadAndInstall(url: String, fileName: String) {
         try {
             val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -377,7 +366,7 @@ class MainActivity : FragmentActivity() {
                 onSuccess()
             }
         }
-               val prompt = BiometricPrompt(this, executor, callback)
+        val prompt = BiometricPrompt(this, executor, callback)
         val builder = BiometricPrompt.PromptInfo.Builder()
             .setTitle("MD-INSTAL")
             .setSubtitle("Potwierdź tożsamość")
@@ -418,16 +407,14 @@ class MainActivity : FragmentActivity() {
             .show()
     }
 
-            inner class Bridge {
+    inner class Bridge {
         @JavascriptInterface
         fun getLocation(): String {
             return try {
-                // Sprawdź zgodę na lokalizację
                 if (Build.VERSION.SDK_INT >= 23 &&
                     checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                     checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 ) {
-                    // Poproś o zgodę
                     runOnUiThread {
                         requestPermissions(
                             arrayOf(
@@ -442,17 +429,9 @@ class MainActivity : FragmentActivity() {
 
                 val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
                 var loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                if (loc == null) {
-                    loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                }
-                if (loc == null) {
-                    loc = lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
-                }
-                if (loc != null) {
-                    "${loc.latitude},${loc.longitude}"
-                } else {
-                    ""
-                }
+                if (loc == null) loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                if (loc == null) loc = lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+                if (loc != null) "${loc.latitude},${loc.longitude}" else ""
             } catch (e: Exception) {
                 ""
             }
@@ -558,25 +537,7 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
-        @JavascriptInterface
-        fun updateMediaSession(title: String, artist: String, playing: Boolean) {
-            runOnUiThread {
-                try {
-                    val metadata = MediaMetadata.Builder()
-                        .putString(MediaMetadata.METADATA_KEY_TITLE, title)
-                        .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
-                        .build()
-                    mediaSession?.setMetadata(metadata)
 
-                    val state = if (playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
-                    val playbackState = PlaybackState.Builder()
-                        .setState(state, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1.0f)
-                        .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP)
-                        .build()
-                    mediaSession?.setPlaybackState(playbackState)
-                } catch (e: Exception) {}
-            }
-        }
         @JavascriptInterface
         fun getVersion(): String {
             return try {
@@ -592,44 +553,58 @@ class MainActivity : FragmentActivity() {
             runOnUiThread { doPrint(html, landscape, title) }
         }
 
+        /**
+         * Startuje/zatrzymuje RadioService.
+         * JS powinien wołać radioState(true, name) TYLKO przy realnym play/stop,
+         * a NIE przy każdej pauzie (pauza != stop).
+         */
         @JavascriptInterface
         fun radioState(playing: Boolean, name: String) {
             runOnUiThread {
                 val i = Intent(this@MainActivity, RadioService::class.java)
                 if (playing) {
                     i.putExtra("name", name)
+                    i.putExtra(RadioService.EXTRA_TITLE, name)
+                    i.putExtra(RadioService.EXTRA_ARTIST, "MD-INSTAL Radio")
+                    i.putExtra(RadioService.EXTRA_PLAYING, true)
                     if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
                 } else {
                     stopService(i)
                 }
             }
         }
+
+        /** Aktualizuje metadane MediaSession w serwisie BEZ restartu. */
+        @JavascriptInterface
+        fun updateMediaSession(title: String, artist: String, playing: Boolean) {
+            runOnUiThread {
+                val i = Intent(this@MainActivity, RadioService::class.java)
+                i.putExtra(RadioService.EXTRA_TITLE, title)
+                i.putExtra(RadioService.EXTRA_ARTIST, artist)
+                i.putExtra(RadioService.EXTRA_PLAYING, playing)
+                if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
+            }
+        }
     }
 
-        @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        // Sprawdź, czy obecny URL to index.html (menu apki)
         val currentUrl = web.url ?: ""
         val isMenu = currentUrl.contains("assets/index.html")
 
         if (!isMenu) {
-            // Jesteśmy poza menu (np. Iglutech, zewnętrzna strona)
             if (web.canGoBack()) {
-                // Cofnij w historii WebView
                 web.goBack()
             } else {
-                // Brak historii — wróć do menu
                 web.loadUrl("https://$host/assets/index.html")
             }
             return
         }
 
-        // Jesteśmy w menu — pytaj JS
         web.evaluateJavascript(
             "(function(){return window.appBack?window.appBack():false})()"
         ) { r ->
             if (r != "true") {
-                // JS nie obsłużył — sprawdź historię
                 if (web.canGoBack()) {
                     web.goBack()
                 } else {
@@ -639,10 +614,10 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-        override fun onDestroy() {
-        stopService(Intent(this, RadioService::class.java))
-        mediaSession?.release()
-        mediaSession = null
+    override fun onDestroy() {
+        try { unregisterReceiver(jsCallReceiver) } catch (_: Exception) {}
+        // UWAGA: celowo NIE zatrzymujemy RadioService tutaj —
+        // radio ma grać dalej po zamknięciu apki. Zatrzymuje je dopiero JS przez radioState(false).
         web.destroy()
         super.onDestroy()
     }

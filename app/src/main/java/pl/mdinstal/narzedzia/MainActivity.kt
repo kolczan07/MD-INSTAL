@@ -34,11 +34,15 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 
 
 class MainActivity : FragmentActivity() {
 
     private lateinit var web: WebView
+    private var mediaSession: MediaSession? = null
     private var printWeb: WebView? = null
     private val host = "appassets.androidplatform.net"
     private var pendingIgluUser: String = ""
@@ -166,6 +170,7 @@ class MainActivity : FragmentActivity() {
         web.addJavascriptInterface(Bridge(), "Android")
         web.loadUrl("https://$host/assets/index.html")
         checkForUpdate()
+        initMediaSession()
     }
 
     private fun doPrint(html: String, landscape: Boolean, title: String) {
@@ -224,7 +229,37 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
-
+        private fun initMediaSession() {
+        mediaSession = MediaSession(this, "MD-INSTAL").apply {
+            setCallback(object : MediaSession.Callback() {
+                override fun onPlay() {
+                    runOnUiThread {
+                        web.evaluateJavascript(
+                            "(function(){if(window.onMediaPlayPause)window.onMediaPlayPause(true);})()",
+                            null
+                        )
+                    }
+                }
+                override fun onPause() {
+                    runOnUiThread {
+                        web.evaluateJavascript(
+                            "(function(){if(window.onMediaPlayPause)window.onMediaPlayPause(false);})()",
+                            null
+                        )
+                    }
+                }
+                override fun onStop() {
+                    runOnUiThread {
+                        web.evaluateJavascript(
+                            "(function(){if(window.onMediaStop)window.onMediaStop();})()",
+                            null
+                        )
+                    }
+                }
+            })
+            isActive = true
+        }
+    }
     private fun downloadAndInstall(url: String, fileName: String) {
         try {
             val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -303,7 +338,7 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-        private fun jsString(s: String): String {
+    private fun jsString(s: String): String {
         val sb = StringBuilder("\"")
         for (c in s) {
             when (c) {
@@ -523,7 +558,25 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        @JavascriptInterface
+        fun updateMediaSession(title: String, artist: String, playing: Boolean) {
+            runOnUiThread {
+                try {
+                    val metadata = MediaMetadata.Builder()
+                        .putString(MediaMetadata.METADATA_KEY_TITLE, title)
+                        .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
+                        .build()
+                    mediaSession?.setMetadata(metadata)
 
+                    val state = if (playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
+                    val playbackState = PlaybackState.Builder()
+                        .setState(state, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1.0f)
+                        .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP)
+                        .build()
+                    mediaSession?.setPlaybackState(playbackState)
+                } catch (e: Exception) {}
+            }
+        }
         @JavascriptInterface
         fun getVersion(): String {
             return try {
@@ -586,8 +639,10 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onDestroy() {
+        override fun onDestroy() {
         stopService(Intent(this, RadioService::class.java))
+        mediaSession?.release()
+        mediaSession = null
         web.destroy()
         super.onDestroy()
     }

@@ -56,6 +56,9 @@ class RadioService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var mediaSession: MediaSession? = null
 
+    /** Stan odtwarzania trzymany w polu — NIE czytamy z MediaSession.playbackState. */
+    private var isPlayingState: Boolean = false
+
     /** Odbiera polecenia z MainActivity, żeby zaktualizować metadane bez restartu serwisu. */
     private val updateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -164,8 +167,8 @@ class RadioService : Service() {
 
         val playPauseAction = Notification.Action.Builder(
             null,
-            if (isPlaying()) "Pauza" else "Play",
-            mediaButtonPendingIntent(if (isPlaying()) PlaybackState.ACTION_PAUSE else PlaybackState.ACTION_PLAY)
+            if (isPlayingState) "Pauza" else "Play",
+            mediaButtonPendingIntent(if (isPlayingState) PlaybackState.ACTION_PAUSE else PlaybackState.ACTION_PLAY)
         ).build()
 
         val stopAction = Notification.Action.Builder(
@@ -211,6 +214,8 @@ class RadioService : Service() {
 
     /** Aktualizuje metadane + playback state + odświeża notyfikację. */
     private fun updateSession(title: String, artist: String, playing: Boolean) {
+        isPlayingState = playing
+
         val metadata = MediaMetadata.Builder()
             .putString(MediaMetadata.METADATA_KEY_TITLE, title)
             .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
@@ -238,9 +243,6 @@ class RadioService : Service() {
         )
         nm.notify(NOTIF_ID, buildNotification(title.ifEmpty { "Radio" }, pi))
     }
-
-    private fun isPlaying(): Boolean =
-        mediaSession?.playbackState?.state == PlaybackState.STATE_PLAYING
 
     /** Wysyła broadcast do MainActivity → MainActivity woła JS. */
     private fun sendJsCall(call: String) {

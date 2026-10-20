@@ -75,17 +75,25 @@ class RadioService : Service() {
         super.onCreate()
 
         mediaSession = MediaSession(this, "MD-INSTAL").apply {
-            setFlags(
-                MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
-                MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
-            )
-            setCallback(object : MediaSession.Callback() {
-                override fun onPlay()  { sendJsCall("onMediaPlayPause(true)") }
-                override fun onPause() { sendJsCall("onMediaPlayPause(false)") }
-                override fun onStop()  { sendJsCall("onMediaStop()") }
-            })
-            isActive = true
-        }
+    setFlags(
+        MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
+        MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
+    )
+    // KLUCZOWE: odbiornik dla przycisków z notyfikacji / słuchawek
+    setMediaButtonReceiver(
+        PendingIntent.getBroadcast(
+            this@RadioService, 0,
+            Intent(Intent.ACTION_MEDIA_BUTTON).setPackage(packageName),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    )
+    setCallback(object : MediaSession.Callback() {
+        override fun onPlay()  { sendJsCall("onMediaPlayPause(true)") }
+        override fun onPause() { sendJsCall("onMediaPlayPause(false)") }
+        override fun onStop()  { sendJsCall("onMediaStop()") }
+    })
+    isActive = true
+}
 
         val filter = IntentFilter(ACTION_UPDATE)
         if (Build.VERSION.SDK_INT >= 33) {

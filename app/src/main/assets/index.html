@@ -412,11 +412,12 @@ window.onMediaPlayPause = function(playing){
   if(!cur) return;
   if(playing){
     if(au.paused) au.play().catch(()=>{});
-    if(window.Android && Android.updateMediaSession) Android.updateMediaSession(cur.name, 'MD-INSTAL Radio', true);
   } else {
     au.pause();
-    if(window.Android && Android.updateMediaSession) Android.updateMediaSession(cur.name, 'MD-INSTAL Radio', false);
   }
+  // NIE wołaj updateMediaSession — serwis już to zrobił (on sam wywołał ten callback).
+  // Inaczej powstaje pętla: MediaSession → JS → updateMediaSession → MediaSession → ...
+  updNp();
 };
 window.onMediaStop = function(){
   stop();
@@ -593,28 +594,49 @@ window.onIglutechCleared=function(){
   $('iglu-status').textContent='Wyczyszczono';
 };
 function play(name,url){
-  cur={name:name,url:url};au.src=url;au.play().catch(()=>{});
-  if(window.Android && Android.updateMediaSession){
-    try { Android.updateMediaSession(name, 'MD-INSTAL Radio', true); } catch(e){}
+  cur={name:name,url:url};
+  au.src=url;
+  au.load();
+  au.play().catch(()=>{});
+  if(window.Android){
+    if(Android.updateMediaSession) Android.updateMediaSession(name, 'MD-INSTAL Radio', true);
+    if(Android.radioState) Android.radioState(true, name);
   }
   updNp();
 }
 function toggle(){
   if(!cur)return;
   if(au.paused){
-    au.src=cur.url;au.play().catch(()=>{});
-    if(window.Android && Android.updateMediaSession) Android.updateMediaSession(cur.name, 'MD-INSTAL Radio', true);
+    au.play().catch(()=>{});
+    if(window.Android && Android.updateMediaSession)
+      Android.updateMediaSession(cur.name, 'MD-INSTAL Radio', true);
   }else{
     au.pause();
-    if(window.Android && Android.updateMediaSession) Android.updateMediaSession(cur.name, 'MD-INSTAL Radio', false);
+    if(window.Android && Android.updateMediaSession)
+      Android.updateMediaSession(cur.name, 'MD-INSTAL Radio', false);
   }
+  updNp();
 }
 function stop(){
-  au.pause();au.removeAttribute('src');au.load();cur=null;updNp();
-  if(window.Android && Android.updateMediaSession) Android.updateMediaSession('', 'MD-INSTAL Radio', false);
+  au.pause();
+  au.removeAttribute('src');
+  au.load();
+  cur=null;
+  if(window.Android){
+    if(Android.updateMediaSession) Android.updateMediaSession('', 'MD-INSTAL Radio', false);
+    if(Android.radioState) Android.radioState(false, '');
+  }
+  updNp();
 }
-['play','pause','playing','error'].forEach(ev=>au.addEventListener(ev,()=>{updNp(ev==='error')}));
-function updNp(err){notifyNative();
+['play','pause','playing','error'].forEach(ev=>au.addEventListener(ev,()=>{
+  if(ev==='error'){
+    updNp(true);
+    // Opcjonalnie: cur = null; — jeśli chcesz, żeby po błędzie "Wznów" nie próbował grać zepsutego URL
+  } else {
+    updNp(false);
+  }
+}));
+function updNp(err){
   document.querySelectorAll('.np').forEach(e=>{
     e.textContent='';
     if(!cur){e.classList.remove('on');return}
@@ -660,7 +682,6 @@ async function rsearch(){
 }
 $('q').addEventListener('keydown',e=>{if(e.key==='Enter')rsearch()});
 
-function notifyNative(){if(window.Android){try{Android.radioState(!!cur&&!au.paused,cur?cur.name:'')}catch(e){}}}
 function shimFn(land,title){
   function sync(){
     document.querySelectorAll('input').forEach(function(i){

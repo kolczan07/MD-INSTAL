@@ -188,15 +188,25 @@ class RadioService : Service() {
     }
 
     private fun playPausePendingIntent(play: Boolean): PendingIntent {
-        val intent = Intent(ACTION_TOGGLE).apply {
-            putExtra(EXTRA_TOGGLE_PLAY, play)
-            setPackage(packageName)
-        }
-        return PendingIntent.getBroadcast(
-            this, if (play) 100 else 101, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+    val intent = Intent(this, ActionProxyActivity::class.java).apply {
+        action = ACTION_TOGGLE
+        putExtra(EXTRA_TOGGLE_PLAY, play)
     }
+    return PendingIntent.getActivity(
+        this, if (play) 100 else 101, intent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+}
+
+private fun stopPendingIntent(): PendingIntent {
+    val intent = Intent(this, ActionProxyActivity::class.java).apply {
+        action = ACTION_STOP
+    }
+    return PendingIntent.getActivity(
+        this, 102, intent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+}
 
     private fun stopPendingIntent(): PendingIntent {
         val intent = Intent(ACTION_STOP).apply {

@@ -415,30 +415,33 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        @JavascriptInterface
+                @JavascriptInterface
         fun scanWifi(): String {
             try {
                 val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
                 val results = wifiManager.scanResults
                 val jsonArray = org.json.JSONArray()
                 
+                // Pobieramy BSSID (MAC) sieci, do której jesteśmy aktualnie podłączeni
+                val currentBssid = wifiManager.connectionInfo?.bssid
+                
                 // Sortujemy od najsilniejszego sygnału
                 val sorted = results.sortedByDescending { it.level }
                 
                 for (result in sorted) {
                     val obj = org.json.JSONObject()
-                    // Jeśli SSID jest pusty, oznacza to sieć ukrytą
                     obj.put("ssid", if (result.SSID.isNullOrEmpty()) "Ukryta sieć" else result.SSID)
-                    obj.put("level", result.level) // Siła w dBm
-                    obj.put("frequency", result.frequency) // MHz
+                    obj.put("level", result.level)
+                    obj.put("frequency", result.frequency)
                     obj.put("channel", getChannelFromFrequency(result.frequency))
                     
                     val cap = result.capabilities ?: ""
                     val security = if (cap.contains("WPA3")) "WPA3" else if (cap.contains("WPA2")) "WPA2" else if (cap.contains("WEP")) "WEP" else if (cap.contains("WPA")) "WPA" else "Otwarta"
                     obj.put("security", security)
                     
-                    // Sprawdzamy czy to ta sieć, do której jesteśmy podłączeni
-                    obj.put("connected", result.networkId != -1)
+                    // Sprawdzamy czy to ta sieć, porównując BSSID
+                    val isConnected = (result.BSSID != null && result.BSSID == currentBssid)
+                    obj.put("connected", isConnected)
                     
                     jsonArray.put(obj)
                 }

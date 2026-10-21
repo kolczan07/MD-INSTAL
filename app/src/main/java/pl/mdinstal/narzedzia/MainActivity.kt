@@ -4,10 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.location.LocationManager
@@ -27,7 +25,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
-import android.widget.Toast
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -48,15 +45,6 @@ class MainActivity : FragmentActivity() {
     private var pendingIgluUser: String = ""
     private var pendingIgluPass: String = ""
     private var pendingIgluRemember: Boolean = false
-
-    private val jsCallReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val call = intent?.getStringExtra(RadioService.EXTRA_JS_CALL) ?: return
-            Toast.makeText(this@MainActivity, "jsCall: $call", Toast.LENGTH_LONG).show()
-            val safe = "(function(){try{ $call; }catch(e){console.error(e)}})()"
-            web.evaluateJavascript(safe, null)
-        }
-    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -185,14 +173,6 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        val filter = IntentFilter(RadioService.ACTION_JS_CALL)
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(jsCallReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(jsCallReceiver, filter)
-        }
-
         web.addJavascriptInterface(Bridge(), "Android")
         web.loadUrl("https://$host/assets/index.html")
         checkForUpdate()
@@ -306,11 +286,7 @@ class MainActivity : FragmentActivity() {
 
     private fun installApk(file: File) {
         try {
-            val uri = FileProvider.getUriForFile(
-                this,
-                "$packageName.fileprovider",
-                file
-            )
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -403,10 +379,7 @@ class MainActivity : FragmentActivity() {
                 val pkg = app.activityInfo.packageName
                 val label = app.loadLabel(packageManager).toString()
                 val jsLabel = label.replace("\\", "\\\\").replace("'", "\\'")
-                web.evaluateJavascript(
-                    "window.onAppPicked && window.onAppPicked('$pkg', '$jsLabel');",
-                    null
-                )
+                web.evaluateJavascript("window.onAppPicked && window.onAppPicked('$pkg', '$jsLabel');", null)
             }
             .setNegativeButton("Anuluj", null)
             .show()
@@ -565,7 +538,6 @@ class MainActivity : FragmentActivity() {
                 if (playing) {
                     i.putExtra("name", name)
                     i.putExtra(RadioService.EXTRA_TITLE, name)
-                    i.putExtra(RadioService.EXTRA_ARTIST, "MD-INSTAL Radio")
                     i.putExtra(RadioService.EXTRA_PLAYING, true)
                     if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
                 } else {
@@ -579,7 +551,6 @@ class MainActivity : FragmentActivity() {
             runOnUiThread {
                 val i = Intent(this@MainActivity, RadioService::class.java)
                 i.putExtra(RadioService.EXTRA_TITLE, title)
-                i.putExtra(RadioService.EXTRA_ARTIST, artist)
                 i.putExtra(RadioService.EXTRA_PLAYING, playing)
                 if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
             }
@@ -614,7 +585,6 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onDestroy() {
-        try { unregisterReceiver(jsCallReceiver) } catch (_: Exception) {}
         stopService(Intent(this, RadioService::class.java))
         web.destroy()
         super.onDestroy()

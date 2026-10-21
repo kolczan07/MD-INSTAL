@@ -17,6 +17,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.print.PrintAttributes
 import android.print.PrintManager
+import android.util.Log
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
@@ -30,6 +32,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.webkit.WebViewAssetLoader
 import java.io.File
@@ -47,15 +50,15 @@ class MainActivity : FragmentActivity() {
     private var pendingIgluPass: String = ""
     private var pendingIgluRemember: Boolean = false
 
-    /** Odbiera polecenia play/pause/stop z RadioService (z MediaSession). */
+    /** Odbiera polecenia play/pause/stop z RadioService. */
     private val jsCallReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val call = intent?.getStringExtra(RadioService.EXTRA_JS_CALL) ?: return
-            // call to np. "onMediaPlayPause(true)" albo "onMediaStop()"
-            val js = "(function(){try{ if(window.$call) window.$call; else $call; }catch(e){}})()"
-            // Prościej: wykonaj dokładnie to, co przyszło, ale z guardem
-            val safe = "(function(){try{ $call; }catch(e){}})()"
-            web.evaluateJavascript(safe, null)
+            Log.d("MDINSTAL", "jsCall odebrane: $call")
+            val safe = "(function(){try{ $call; }catch(e){console.error(e)}})()"
+            web.evaluateJavascript(safe) { result ->
+                Log.d("MDINSTAL", "JS result: $result")
+            }
         }
     }
 
@@ -68,6 +71,17 @@ class MainActivity : FragmentActivity() {
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+
+        // ===== DYMek przy kamerze (notch) — działa też bez BT =====
+        // Rysuj tło apki pod notchem i pod status barem.
+        if (Build.VERSION.SDK_INT >= 28) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // =========================================================
 
         val loader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -178,7 +192,7 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        // Rejestracja odbiorcy poleceń z RadioService
+        // Rejestracja odbiorcy poleceń z RadioService — MUSI być przed loadUrl
         val filter = IntentFilter(RadioService.ACTION_JS_CALL)
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(jsCallReceiver, filter, Context.RECEIVER_NOT_EXPORTED)

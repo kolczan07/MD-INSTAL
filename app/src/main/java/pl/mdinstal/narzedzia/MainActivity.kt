@@ -60,7 +60,6 @@ class MainActivity : FragmentActivity() {
         web.evaluateJavascript(safe, null)
     }
 }
-    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {

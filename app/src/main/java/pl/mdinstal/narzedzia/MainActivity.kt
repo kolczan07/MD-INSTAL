@@ -1,5 +1,6 @@
 package pl.mdinstal.narzedzia
 
+import android.widget.Toast
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -52,14 +53,13 @@ class MainActivity : FragmentActivity() {
 
     /** Odbiera polecenia play/pause/stop z RadioService. */
     private val jsCallReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val call = intent?.getStringExtra(RadioService.EXTRA_JS_CALL) ?: return
-            Log.d("MDINSTAL", "jsCall odebrane: $call")
-            val safe = "(function(){try{ $call; }catch(e){console.error(e)}})()"
-            web.evaluateJavascript(safe) { result ->
-                Log.d("MDINSTAL", "JS result: $result")
-            }
-        }
+    override fun onReceive(context: Context?, intent: Intent?) {
+        val call = intent?.getStringExtra(RadioService.EXTRA_JS_CALL) ?: return
+        Toast.makeText(this@MainActivity, "jsCall: $call", Toast.LENGTH_LONG).show()
+        val safe = "(function(){try{ $call; }catch(e){console.error(e)}})()"
+        web.evaluateJavascript(safe, null)
+    }
+}
     }
 
     @SuppressLint("SetJavaScriptEnabled")

@@ -1,6 +1,5 @@
 package pl.mdinstal.narzedzia
 
-import android.widget.Toast
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -18,7 +17,6 @@ import android.os.Bundle
 import android.os.Environment
 import android.print.PrintAttributes
 import android.print.PrintManager
-import android.util.Log
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.JsPromptResult
@@ -29,6 +27,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import android.widget.Toast
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -41,7 +40,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 
-
 class MainActivity : FragmentActivity() {
 
     private lateinit var web: WebView
@@ -51,15 +49,14 @@ class MainActivity : FragmentActivity() {
     private var pendingIgluPass: String = ""
     private var pendingIgluRemember: Boolean = false
 
-    /** Odbiera polecenia play/pause/stop z RadioService. */
     private val jsCallReceiver = object : BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-        val call = intent?.getStringExtra(RadioService.EXTRA_JS_CALL) ?: return
-        Toast.makeText(this@MainActivity, "jsCall: $call", Toast.LENGTH_LONG).show()
-        val safe = "(function(){try{ $call; }catch(e){console.error(e)}})()"
-        web.evaluateJavascript(safe, null)
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val call = intent?.getStringExtra(RadioService.EXTRA_JS_CALL) ?: return
+            Toast.makeText(this@MainActivity, "jsCall: $call", Toast.LENGTH_LONG).show()
+            val safe = "(function(){try{ $call; }catch(e){console.error(e)}})()"
+            web.evaluateJavascript(safe, null)
+        }
     }
-}
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,8 +68,6 @@ class MainActivity : FragmentActivity() {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
 
-        // ===== DYMek przy kamerze (notch) — działa też bez BT =====
-        // Rysuj tło apki pod notchem i pod status barem.
         if (Build.VERSION.SDK_INT >= 28) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode =
@@ -80,7 +75,6 @@ class MainActivity : FragmentActivity() {
             }
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        // =========================================================
 
         val loader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -191,7 +185,6 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        // Rejestracja odbiorcy poleceń z RadioService — MUSI być przed loadUrl
         val filter = IntentFilter(RadioService.ACTION_JS_CALL)
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(jsCallReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -257,7 +250,6 @@ class MainActivity : FragmentActivity() {
                     }
                 }
             } catch (e: Exception) {
-                // brak internetu / błąd — cicho ignorujemy
             }
         }
     }
@@ -566,11 +558,6 @@ class MainActivity : FragmentActivity() {
             runOnUiThread { doPrint(html, landscape, title) }
         }
 
-        /**
-         * Startuje/zatrzymuje RadioService.
-         * JS powinien wołać radioState(true, name) TYLKO przy realnym play/stop,
-         * a NIE przy każdej pauzie (pauza != stop).
-         */
         @JavascriptInterface
         fun radioState(playing: Boolean, name: String) {
             runOnUiThread {
@@ -587,7 +574,6 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        /** Aktualizuje metadane MediaSession w serwisie BEZ restartu. */
         @JavascriptInterface
         fun updateMediaSession(title: String, artist: String, playing: Boolean) {
             runOnUiThread {
@@ -629,8 +615,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onDestroy() {
         try { unregisterReceiver(jsCallReceiver) } catch (_: Exception) {}
-        // UWAGA: celowo NIE zatrzymujemy RadioService tutaj —
-        // radio ma grać dalej po zamknięciu apki. Zatrzymuje je dopiero JS przez radioState(false).
+        stopService(Intent(this, RadioService::class.java))
         web.destroy()
         super.onDestroy()
     }

@@ -200,8 +200,8 @@ iframe{flex:1;width:100%;border:0;background:#fff}
     <div class="footer-tech">TECH</div>
   </footer>
 </div>
-<div id="app">
-  <iframe id="fr"></iframe>
+<div id="app" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; flex-direction: column; background: var(--bg); z-index: 100; padding-top: env(safe-area-inset-top, 0px); box-sizing: border-box;">
+  <iframe id="fr" style="flex: 1; width: 100%; border: 0; background: #fff;"></iframe>
 </div>
 <div id="radio">
   <div class="rbody">
@@ -284,7 +284,7 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   </div>
 </div>
 
-<div id="speedtest" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; flex-direction: column; overflow: hidden; background: var(--bg); z-index: 100; padding-top: env(safe-area-inset-top, 24px); box-sizing: border-box;">
+<div id="speedtest" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; flex-direction: column; overflow: hidden; background: var(--bg); z-index: 100; box-sizing: border-box;">
   <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
     <iframe scrolling="no" src="https://md-instal.fireprobe.net" style="width: 90vw; height: 90vh; overflow: hidden; border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: #fff;"></iframe>
   </div>
@@ -327,7 +327,7 @@ function dec(id){const b=atob(document.getElementById(id).textContent.trim());co
 function openTool(id){
   document.getElementById('home').style.display='none';
   document.getElementById('app').style.display='flex';
-  document.getElementById('ttl').textContent=T[id];
+  // Usuwamy odwołanie do 'ttl', bo nie ma go już w HTML
   document.getElementById('fr').srcdoc=withShim(dec(id),id);
 }
 function closeTool(){

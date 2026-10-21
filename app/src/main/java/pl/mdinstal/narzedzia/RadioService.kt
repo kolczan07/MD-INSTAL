@@ -1,5 +1,6 @@
 package pl.mdinstal.narzedzia
 
+import android.widget.Toast
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
@@ -165,6 +166,7 @@ class RadioService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Toast.makeText(this, "onStartCommand: ${intent?.action}", Toast.LENGTH_SHORT).show()
         // Android 13+ wymaga zgody na notyfikacje, inaczej startForeground rzuci SecurityException.
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED

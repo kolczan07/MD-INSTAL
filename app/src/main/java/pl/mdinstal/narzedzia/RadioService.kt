@@ -57,28 +57,6 @@ class RadioService : Service() {
         }
     }
 
-    private val actionReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                ACTION_TOGGLE -> {
-                    val play = intent.getBooleanExtra(EXTRA_TOGGLE_PLAY, !isPlayingState)
-                    Log.d(TAG, "actionReceiver ACTION_TOGGLE play=$play")
-                    Toast.makeText(this@RadioService, "actionReceiver TOGGLE play=$play", Toast.LENGTH_LONG).show()
-                    isPlayingState = play
-                    sendJsCall("onMediaPlayPause($play)")
-                    updateSessionInternal("", "MD-INSTAL Radio", play)
-                }
-                ACTION_STOP -> {
-                    Log.d(TAG, "actionReceiver ACTION_STOP")
-                    Toast.makeText(this@RadioService, "actionReceiver STOP", Toast.LENGTH_LONG).show()
-                    isPlayingState = false
-                    sendJsCall("onMediaStop()")
-                    stopSelf()
-                }
-            }
-        }
-    }
-
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "RadioService onCreate")
@@ -117,17 +95,6 @@ class RadioService : Service() {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(updateReceiver, updateFilter)
         }
-
-        val actionFilter = IntentFilter().apply {
-            addAction(ACTION_TOGGLE)
-            addAction(ACTION_STOP)
-        }
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(actionReceiver, actionFilter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(actionReceiver, actionFilter)
-        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -142,6 +109,26 @@ class RadioService : Service() {
             Log.w(TAG, "Brak POST_NOTIFICATIONS — stopSelf")
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        when (intent?.action) {
+            ACTION_TOGGLE -> {
+                val play = intent.getBooleanExtra(EXTRA_TOGGLE_PLAY, !isPlayingState)
+                Log.d(TAG, "ACTION_TOGGLE play=$play")
+                Toast.makeText(this, "ACTION_TOGGLE play=$play", Toast.LENGTH_LONG).show()
+                isPlayingState = play
+                sendJsCall("onMediaPlayPause($play)")
+                updateSessionInternal("", "MD-INSTAL Radio", play)
+                return START_STICKY
+            }
+            ACTION_STOP -> {
+                Log.d(TAG, "ACTION_STOP")
+                Toast.makeText(this, "ACTION_STOP", Toast.LENGTH_LONG).show()
+                isPlayingState = false
+                sendJsCall("onMediaStop()")
+                stopSelf()
+                return START_NOT_STICKY
+            }
         }
 
         if (intent == null) {
@@ -188,75 +175,65 @@ class RadioService : Service() {
     }
 
     private fun playPausePendingIntent(play: Boolean): PendingIntent {
-    val intent = Intent(this, ActionProxyActivity::class.java).apply {
-        action = ACTION_TOGGLE
-        putExtra(EXTRA_TOGGLE_PLAY, play)
+        val intent = Intent(this, ActionProxyActivity::class.java).apply {
+            action = ACTION_TOGGLE
+            putExtra(EXTRA_TOGGLE_PLAY, play)
+        }
+        return PendingIntent.getActivity(
+            this, if (play) 100 else 101, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
-    return PendingIntent.getActivity(
-        this, if (play) 100 else 101, intent,
-        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    )
-}
-
-private fun stopPendingIntent(): PendingIntent {
-    val intent = Intent(this, ActionProxyActivity::class.java).apply {
-        action = ACTION_STOP
-    }
-    return PendingIntent.getActivity(
-        this, 102, intent,
-        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    )
-}
 
     private fun stopPendingIntent(): PendingIntent {
-        val intent = Intent(ACTION_STOP).apply {
-            setPackage(packageName)
+        val intent = Intent(this, ActionProxyActivity::class.java).apply {
+            action = ACTION_STOP
         }
-        return PendingIntent.getBroadcast(
+        return PendingIntent.getActivity(
             this, 102, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
     }
 
     private fun buildNotification(name: String, contentPi: PendingIntent): Notification {
-    val builder = if (Build.VERSION.SDK_INT >= 26)
-        Notification.Builder(this, CHANNEL_ID)
-    else
-        Notification.Builder(this)
+        val builder = if (Build.VERSION.SDK_INT >= 26)
+            Notification.Builder(this, CHANNEL_ID)
+        else
+            Notification.Builder(this)
 
-    val playPauseIcon = if (isPlayingState)
-        android.R.drawable.ic_media_pause
-    else
-        android.R.drawable.ic_media_play
+        val playPauseIcon = if (isPlayingState)
+            android.R.drawable.ic_media_pause
+        else
+            android.R.drawable.ic_media_play
 
-    val playPauseAction = Notification.Action.Builder(
-        android.graphics.drawable.Icon.createWithResource(this, playPauseIcon),
-        if (isPlayingState) "Pauza" else "Play",
-        if (isPlayingState) playPausePendingIntent(false) else playPausePendingIntent(true)
-    ).build()
+        val playPauseAction = Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, playPauseIcon),
+            if (isPlayingState) "Pauza" else "Play",
+            if (isPlayingState) playPausePendingIntent(false) else playPausePendingIntent(true)
+        ).build()
 
-    val stopAction = Notification.Action.Builder(
-        android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel),
-        "Stop",
-        stopPendingIntent()
-    ).build()
+        val stopAction = Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel),
+            "Stop",
+            stopPendingIntent()
+        ).build()
 
-    return builder
-        .setContentTitle(name)
-        .setContentText("MD-INSTAL Radio")
-        .setSmallIcon(android.R.drawable.ic_media_play)
-        .setContentIntent(contentPi)
-        .setOngoing(true)
-        .setVisibility(Notification.VISIBILITY_PUBLIC)
-        .setStyle(
-            Notification.MediaStyle()
-                .setMediaSession(mediaSession?.sessionToken)
-                .setShowActionsInCompactView(0, 1)
-        )
-        .addAction(playPauseAction)
-        .addAction(stopAction)
-        .build()
-}
+        return builder
+            .setContentTitle(name)
+            .setContentText("MD-INSTAL Radio")
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentIntent(contentPi)
+            .setOngoing(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setStyle(
+                Notification.MediaStyle()
+                    .setMediaSession(mediaSession?.sessionToken)
+                    .setShowActionsInCompactView(0, 1)
+            )
+            .addAction(playPauseAction)
+            .addAction(stopAction)
+            .build()
+    }
 
     private fun updateSession(title: String, artist: String, playing: Boolean) {
         isPlayingState = playing
@@ -299,7 +276,6 @@ private fun stopPendingIntent(): PendingIntent {
 
     override fun onDestroy() {
         try { unregisterReceiver(updateReceiver) } catch (_: Exception) {}
-        try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         mediaSession?.release()

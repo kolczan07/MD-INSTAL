@@ -15,7 +15,6 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
-import android.widget.Toast
 
 class RadioService : Service() {
 
@@ -27,6 +26,7 @@ class RadioService : Service() {
 
         const val ACTION_UPDATE = "pl.mdinstal.narzedzia.UPDATE_SESSION"
         const val EXTRA_TITLE = "update_title"
+        const val EXTRA_ARTIST = "update_artist"
         const val EXTRA_PLAYING = "update_playing"
 
         const val CHANNEL_ID = "radio"
@@ -35,14 +35,17 @@ class RadioService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var isPlayingState: Boolean = false
-    private var currentName: String = "Radio"
+    private var currentStationName: String = "Radio"
 
+    // Odbiera aktualizacje z aplikacji (np. zmiana stacji, pauza w apce)
     private val updateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_UPDATE) {
-                val title = intent.getStringExtra(EXTRA_TITLE) ?: "Radio"
+                val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
                 val playing = intent.getBooleanExtra(EXTRA_PLAYING, false)
-                updateNotification(title, playing)
+                if (title.isNotEmpty()) currentStationName = title
+                isPlayingState = playing
+                updateNotification()
             }
         }
     }
@@ -51,6 +54,7 @@ class RadioService : Service() {
         super.onCreate()
         Log.d(TAG, "RadioService onCreate")
 
+        // Rejestracja odbiorcy aktualizacji
         val updateFilter = IntentFilter(ACTION_UPDATE)
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(updateReceiver, updateFilter, Context.RECEIVER_NOT_EXPORTED)
@@ -63,44 +67,45 @@ class RadioService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand action=${intent?.action}")
-
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "Brak POST_NOTIFICATIONS — stopSelf")
             stopSelf()
             return START_NOT_STICKY
         }
 
         if (intent == null) {
-            ensureForeground("Radio", false)
+            ensureForeground()
             return START_STICKY
         }
 
         val name = intent.getStringExtra("name") ?: "Radio"
-        val title = intent.getStringExtra(EXTRA_TITLE) ?: name
         val playing = intent.getBooleanExtra(EXTRA_PLAYING, false)
-
-        currentName = title
+        
+        currentStationName = name
         isPlayingState = playing
 
-        ensureForeground(title, playing)
+        ensureForeground()
 
         return START_STICKY
     }
 
-    private fun ensureForeground(name: String, playing: Boolean) {
+    private fun ensureForeground() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26) {
             nm.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Radio", NotificationManager.IMPORTANCE_LOW)
             )
         }
-        
-        val notification = buildNotification(name, playing)
-        
-        // Uruchamiamy zwykły foreground service (bez typu mediaPlayback)
+
+        val pi = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = buildNotification(pi)
+
+        // Uruchamiamy jako zwykły foreground service (bez typu MEDIA_PLAYBACK)
         startForeground(NOTIF_ID, notification)
 
         if (wakeLock == null) {
@@ -111,37 +116,32 @@ class RadioService : Service() {
         }
     }
 
-    private fun updateNotification(name: String, playing: Boolean) {
-        currentName = name
-        isPlayingState = playing
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(NOTIF_ID, buildNotification(name, playing))
-    }
-
-    private fun buildNotification(name: String, playing: Boolean): Notification {
+    private fun buildNotification(contentPi: PendingIntent): Notification {
         val builder = if (Build.VERSION.SDK_INT >= 26)
             Notification.Builder(this, CHANNEL_ID)
         else
             Notification.Builder(this)
 
-        val pi = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+        val statusText = if (isPlayingState) "Gra" else "Wstrzymane"
 
         return builder
-            .setContentTitle(name)
-            .setContentText(if (playing) "Radio gra w tle" else "Radio wstrzymane")
-            .setSmallIcon(R.mipmap.ic_launcher) // Ikona aplikacji zamiast domyślnej strzałki
-            .setContentIntent(pi)
+            .setContentTitle(currentStationName)
+            .setContentText("MD-INSTAL Radio • $statusText")
+            .setSmallIcon(R.mipmap.ic_launcher) // Używa ikony Twojej aplikacji
+            .setContentIntent(contentPi)
             .setOngoing(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .build()
     }
 
-    private fun sendJsCall(call: String) {
-        Log.d(TAG, "sendJsCall: $call")
-        sendBroadcast(Intent(ACTION_JS_CALL).putExtra(EXTRA_JS_CALL, call))
+    // Wywoływane, gdy aplikacja zgłasza zmianę stanu (np. pauza w apce)
+    private fun updateNotification() {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val pi = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        nm.notify(NOTIF_ID, buildNotification(pi))
     }
 
     override fun onDestroy() {

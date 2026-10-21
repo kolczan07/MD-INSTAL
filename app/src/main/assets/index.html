@@ -162,9 +162,10 @@ iframe{flex:1;width:100%;border:0;background:#fff}
     <div class="footer-tech">TECH</div>
   </footer>
 </div>
-<div id="app"><div id="bar"><button onclick="closeTool()">← Menu</button><span id="ttl"></span></div><iframe id="fr"></iframe></div>
+<div id="app">
+  <iframe id="fr"></iframe>
+</div>
 <div id="radio">
-  <div class="rbar"><button onclick="closeRadio()">← Menu</button><span>Radio internetowe</span></div>
   <div class="rbody">
     <div class="srch"><input id="q" type="search" placeholder="Szukaj stacji, np. Eska, RMF, Zet"><button onclick="rsearch()">Szukaj</button></div>
     <label class="chk"><input type="checkbox" id="pl" checked> Tylko Polska</label>
@@ -174,10 +175,6 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   </div>
 </div>
 <div id="info" style="display:none">
-  <div class="rbar">
-    <button onclick="closeInfo()">← Menu</button>
-    <span>Info</span>
-  </div>
   <div class="rbody">
     <h2>MD-INSTAL Narzędzia</h2>
     <p><b>Wersja:</b> <span id="info-version">…</span></p>
@@ -186,10 +183,6 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   </div>
 </div>
 <div id="skroty" style="display:none">
-  <div class="rbar">
-    <button onclick="closeShortcuts()">← Menu</button>
-    <span>Skróty</span>
-  </div>
   <div class="rbody">
     <h2>Moje skróty</h2>
     <div id="shortcuts-list"></div>
@@ -200,10 +193,6 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   </div>
 </div>
 <div id="settings" style="display:none">
-  <div class="rbar">
-    <button onclick="closeSettings()">← Menu</button>
-    <span>Ustawienia</span>
-  </div>
   <div class="rbody">
     <h2>Motyw aplikacji</h2>
     <button class="action-btn" onclick="setTheme('light')"><b>☀️ Jasny</b><span>Zawsze jasny</span></button>
@@ -249,10 +238,6 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   </div>
 </div>
 <div id="weather" style="display:none">
-  <div class="rbar">
-    <button onclick="closeWeather()">← Menu</button>
-    <span>Pogoda</span>
-  </div>
   <div class="rbody">
     <div id="weather-content">
       <p class="empty">Ładowanie…</p>
@@ -265,21 +250,13 @@ iframe{flex:1;width:100%;border:0;background:#fff}
   </div>
 </div>
 
-<div id="speedtest" style="display:none; height: 100%; flex-direction: column;">
-  <div class="rbar">
-    <button onclick="closeSpeedtest()">← Menu</button>
-    <span>Speed Test</span>
-  </div>
+<div id="speedtest" style="display:none; height: 100%; flex-direction: column; overflow: hidden;">
   <div style="flex: 1; display: flex; align-items: center; justify-content: center; background: var(--bg);">
     <iframe scrolling="no" src="https://md-instal.fireprobe.net" style="width: 90vw; height: 90vh; overflow: hidden; border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
   </div>
 </div>
 
 <div id="network" style="display:none">
-  <div class="rbar">
-    <button onclick="closeNetwork()">← Menu</button>
-    <span>Sieć</span>
-  </div>
   <div class="rbody">
     <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
       <button class="tool-card" onclick="openSpeedtest()" style="min-height:auto; padding:20px;">
@@ -921,7 +898,7 @@ window.addEventListener('message',function(e){
   }
 });
 window.appBack=function(){
-  if(document.getElementById('app').style.display==='flex'){closeTool();return true}
+  if(document.getElementById('a<div id="app">pp').style.display==='flex'){closeTool();return true}
   if(document.getElementById('radio').style.display==='block'){closeRadio();return true}
   if(document.getElementById('weather').style.display==='block'){closeWeather();return true}
   if(document.getElementById('speedtest').style.display==='flex'){closeSpeedtest();return true}

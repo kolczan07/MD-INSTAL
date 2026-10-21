@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
@@ -39,7 +40,6 @@ class RadioService : Service() {
     private var isPlayingState: Boolean = false
     private var currentStationName: String = "Radio"
     
-    // MediaSession wysyła tylko metadane (dla BT i ekranu blokady)
     private var mediaSession: MediaSession? = null
 
     private val updateReceiver = object : BroadcastReceiver() {
@@ -59,6 +59,9 @@ class RadioService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Tworzymy MediaSession TYLKO dla wysyłania metadanych (BT, ekran blokady).
+        // Nie podpinamy do niej żadnych przycisków.
         mediaSession = MediaSession(this, "MD-INSTAL").apply {
             isActive = true
         }
@@ -113,7 +116,13 @@ class RadioService : Service() {
         )
 
         val notification = buildNotification(pi)
-        startForeground(NOTIF_ID, notification)
+        
+        // Przywrócony typ MEDIA_PLAYBACK - bez tego Android 14 zabija apkę
+        if (Build.VERSION.SDK_INT >= 29) {
+            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(NOTIF_ID, notification)
+        }
 
         if (wakeLock == null) {
             val pm = getSystemService(POWER_SERVICE) as PowerManager
@@ -129,7 +138,8 @@ class RadioService : Service() {
         else
             Notification.Builder(this)
 
-        // Tylko nazwa stacji i MD-INSTAL Radio. Żadnych statusów "Gra/Wstrzymane".
+        // MediaStyle jest wymagane przez system dla typu MEDIA_PLAYBACK.
+        // Brak addAction() sprawia, że NIE MA przycisków play/pause/stop.
         return builder
             .setContentTitle(currentStationName)
             .setContentText("MD-INSTAL Radio")
@@ -137,24 +147,29 @@ class RadioService : Service() {
             .setContentIntent(contentPi)
             .setOngoing(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setStyle(
+                Notification.MediaStyle()
+                    .setMediaSession(mediaSession?.sessionToken)
+                    .setShowActionsInCompactView() // Puste - brak przycisków
+            )
             .build()
     }
 
     private fun updateMediaSession() {
         if (mediaSession == null) return
 
-        // Wysyła tylko nazwę stacji na Bluetooth i ekran blokady
+        // Wysyła TYLKO nazwę stacji na Bluetooth i ekran blokady
         val metadata = MediaMetadata.Builder()
             .putString(MediaMetadata.METADATA_KEY_TITLE, currentStationName)
             .putString(MediaMetadata.METADATA_KEY_ARTIST, "MD-INSTAL Radio")
             .build()
         mediaSession?.setMetadata(metadata)
 
-        // To ustawienie mówi systemowi, że "coś gra" (żeby nie ucinał transmisji),
-        // ale nie wyświetla przycisków ani statusów w powiadomieniu.
         val state = if (isPlayingState) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
         val playbackState = PlaybackState.Builder()
             .setState(state, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1.0f)
+            // Brak akcji (PLAY, PAUSE) sprawia, że system nie wyświetla przycisków
+            .setActions(0) 
             .build()
         mediaSession?.setPlaybackState(playbackState)
     }

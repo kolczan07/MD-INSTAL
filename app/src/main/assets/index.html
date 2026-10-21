@@ -415,8 +415,11 @@ window.onMediaPlayPause = function(playing){
   } else {
     au.pause();
   }
-  // NIE wołaj updateMediaSession — serwis już to zrobił (on sam wywołał ten callback).
-  // Inaczej powstaje pętla: MediaSession → JS → updateMediaSession → MediaSession → ...
+  // Poinformuj serwis o nowym stanie — inaczej isPlayingState i PlaybackState
+  // zostają na PLAYING i kolejne kliknięcia BT/notyfikacji nie działają.
+  if(window.Android && Android.updateMediaSession){
+    Android.updateMediaSession(cur.name, 'MD-INSTAL Radio', playing);
+  }
   updNp();
 };
 window.onMediaStop = function(){

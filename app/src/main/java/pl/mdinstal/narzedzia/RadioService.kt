@@ -57,6 +57,28 @@ class RadioService : Service() {
         }
     }
 
+    private val actionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                ACTION_TOGGLE -> {
+                    val play = intent.getBooleanExtra(EXTRA_TOGGLE_PLAY, !isPlayingState)
+                    Log.d(TAG, "actionReceiver ACTION_TOGGLE play=$play")
+                    Toast.makeText(this@RadioService, "actionReceiver TOGGLE play=$play", Toast.LENGTH_LONG).show()
+                    isPlayingState = play
+                    sendJsCall("onMediaPlayPause($play)")
+                    updateSessionInternal("", "MD-INSTAL Radio", play)
+                }
+                ACTION_STOP -> {
+                    Log.d(TAG, "actionReceiver ACTION_STOP")
+                    Toast.makeText(this@RadioService, "actionReceiver STOP", Toast.LENGTH_LONG).show()
+                    isPlayingState = false
+                    sendJsCall("onMediaStop()")
+                    stopSelf()
+                }
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "RadioService onCreate")
@@ -88,12 +110,23 @@ class RadioService : Service() {
             isActive = true
         }
 
-        val filter = IntentFilter(ACTION_UPDATE)
+        val updateFilter = IntentFilter(ACTION_UPDATE)
         if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(updateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(updateReceiver, updateFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(updateReceiver, filter)
+            registerReceiver(updateReceiver, updateFilter)
+        }
+
+        val actionFilter = IntentFilter().apply {
+            addAction(ACTION_TOGGLE)
+            addAction(ACTION_STOP)
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(actionReceiver, actionFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(actionReceiver, actionFilter)
         }
     }
 
@@ -109,23 +142,6 @@ class RadioService : Service() {
             Log.w(TAG, "Brak POST_NOTIFICATIONS — stopSelf")
             stopSelf()
             return START_NOT_STICKY
-        }
-
-        when (intent?.action) {
-            ACTION_TOGGLE -> {
-                val play = intent.getBooleanExtra(EXTRA_TOGGLE_PLAY, !isPlayingState)
-                Log.d(TAG, "ACTION_TOGGLE play=$play")
-                isPlayingState = play
-                sendJsCall("onMediaPlayPause($play)")
-                updateSessionInternal("", "MD-INSTAL Radio", play)
-                return START_STICKY
-            }
-            ACTION_STOP -> {
-                Log.d(TAG, "ACTION_STOP")
-                isPlayingState = false
-                sendJsCall("onMediaStop()")
-                return START_STICKY
-            }
         }
 
         if (intent == null) {
@@ -172,21 +188,21 @@ class RadioService : Service() {
     }
 
     private fun playPausePendingIntent(play: Boolean): PendingIntent {
-        val intent = Intent(this, RadioService::class.java).apply {
-            action = ACTION_TOGGLE
+        val intent = Intent(ACTION_TOGGLE).apply {
             putExtra(EXTRA_TOGGLE_PLAY, play)
+            setPackage(packageName)
         }
-        return PendingIntent.getService(
+        return PendingIntent.getBroadcast(
             this, if (play) 100 else 101, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
     }
 
     private fun stopPendingIntent(): PendingIntent {
-        val intent = Intent(this, RadioService::class.java).apply {
-            action = ACTION_STOP
+        val intent = Intent(ACTION_STOP).apply {
+            setPackage(packageName)
         }
-        return PendingIntent.getService(
+        return PendingIntent.getBroadcast(
             this, 102, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -264,6 +280,7 @@ class RadioService : Service() {
 
     override fun onDestroy() {
         try { unregisterReceiver(updateReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         mediaSession?.release()

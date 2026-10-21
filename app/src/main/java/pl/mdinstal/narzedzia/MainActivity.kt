@@ -386,7 +386,7 @@ class MainActivity : FragmentActivity() {
     }
 
     inner class Bridge {
-        @JavascriptInterface
+                @JavascriptInterface
         fun getLocation(): String {
             return try {
                 if (Build.VERSION.SDK_INT >= 23 &&
@@ -413,6 +413,50 @@ class MainActivity : FragmentActivity() {
             } catch (e: Exception) {
                 ""
             }
+        }
+
+        @JavascriptInterface
+        fun scanWifi(): String {
+            try {
+                val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                val results = wifiManager.scanResults
+                val jsonArray = org.json.JSONArray()
+                
+                // Sortujemy od najsilniejszego sygnału
+                val sorted = results.sortedByDescending { it.level }
+                
+                for (result in sorted) {
+                    val obj = org.json.JSONObject()
+                    // Jeśli SSID jest pusty, oznacza to sieć ukrytą
+                    obj.put("ssid", if (result.SSID.isNullOrEmpty()) "Ukryta sieć" else result.SSID)
+                    obj.put("level", result.level) // Siła w dBm
+                    obj.put("frequency", result.frequency) // MHz
+                    obj.put("channel", getChannelFromFrequency(result.frequency))
+                    
+                    val cap = result.capabilities ?: ""
+                    val security = if (cap.contains("WPA3")) "WPA3" else if (cap.contains("WPA2")) "WPA2" else if (cap.contains("WEP")) "WEP" else if (cap.contains("WPA")) "WPA" else "Otwarta"
+                    obj.put("security", security)
+                    
+                    // Sprawdzamy czy to ta sieć, do której jesteśmy podłączeni
+                    obj.put("connected", result.networkId != -1)
+                    
+                    jsonArray.put(obj)
+                }
+                return jsonArray.toString()
+            } catch (e: Exception) {
+                return "[]"
+            }
+        }
+
+        // Funkcja pomocnicza do wyliczania kanału
+        private fun getChannelFromFrequency(freq: Int): Int {
+            if (freq == 2484) return 14
+            if (freq < 2484) return (freq - 2407) / 5
+            if (freq >= 4910 && freq <= 4980) return (freq - 4000) / 5
+            if (freq < 5925) return (freq - 5000) / 5
+            if (freq == 5935) return 2
+            if (freq <= 45000) return (freq - 5950) / 5
+            return 0
         }
 
         @JavascriptInterface

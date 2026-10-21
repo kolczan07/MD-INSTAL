@@ -209,35 +209,44 @@ class RadioService : Service() {
     }
 
     private fun buildNotification(name: String, contentPi: PendingIntent): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= 26)
-            Notification.Builder(this, CHANNEL_ID)
-        else
-            Notification.Builder(this)
+    val builder = if (Build.VERSION.SDK_INT >= 26)
+        Notification.Builder(this, CHANNEL_ID)
+    else
+        Notification.Builder(this)
 
-        val playPauseAction = Notification.Action.Builder(
-            null,
-            if (isPlayingState) "Pauza" else "Play",
-            if (isPlayingState) playPausePendingIntent(false) else playPausePendingIntent(true)
-        ).build()
+    val playPauseIcon = if (isPlayingState)
+        android.R.drawable.ic_media_pause
+    else
+        android.R.drawable.ic_media_play
 
-        val stopAction = Notification.Action.Builder(null, "Stop", stopPendingIntent()).build()
+    val playPauseAction = Notification.Action.Builder(
+        android.graphics.drawable.Icon.createWithResource(this, playPauseIcon),
+        if (isPlayingState) "Pauza" else "Play",
+        if (isPlayingState) playPausePendingIntent(false) else playPausePendingIntent(true)
+    ).build()
 
-        return builder
-            .setContentTitle(name)
-            .setContentText("MD-INSTAL Radio")
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentIntent(contentPi)
-            .setOngoing(true)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setStyle(
-                Notification.MediaStyle()
-                    .setMediaSession(mediaSession?.sessionToken)
-                    .setShowActionsInCompactView(0, 1)
-            )
-            .addAction(playPauseAction)
-            .addAction(stopAction)
-            .build()
-    }
+    val stopAction = Notification.Action.Builder(
+        android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel),
+        "Stop",
+        stopPendingIntent()
+    ).build()
+
+    return builder
+        .setContentTitle(name)
+        .setContentText("MD-INSTAL Radio")
+        .setSmallIcon(android.R.drawable.ic_media_play)
+        .setContentIntent(contentPi)
+        .setOngoing(true)
+        .setVisibility(Notification.VISIBILITY_PUBLIC)
+        .setStyle(
+            Notification.MediaStyle()
+                .setMediaSession(mediaSession?.sessionToken)
+                .setShowActionsInCompactView(0, 1)
+        )
+        .addAction(playPauseAction)
+        .addAction(stopAction)
+        .build()
+}
 
     private fun updateSession(title: String, artist: String, playing: Boolean) {
         isPlayingState = playing
